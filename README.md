@@ -5,6 +5,11 @@ native executable with [scriptc](https://scriptc.dev) (no Node, no JS engine in
 the binary) and displayed with [raylib](https://www.raylib.com) through
 scriptc's native FFI.
 
+Documentation: [docs/](docs/README.md) explains how the repository fits
+together (architecture, scriptc, the bun/zig/raylib toolchain);
+[docs/howto/](docs/howto/README.md) is a tutorial on writing a CHIP-8
+emulator in TypeScript, following the code in `src/`.
+
 ```
 src/chip8.ts            CPU, memory, timers, display buffer, keypad, quirk switches
 src/font.ts             built-in hexadecimal font
@@ -156,6 +161,8 @@ CHIP-8 specification and opcodes:
   behaviour; used to cross-check opcode coverage.
 - [An Introduction to Chip-8 Emulation using the Rust Programming Language](https://github.com/aquova/chip8-book)
   (aquova) — emulator structure reference.
+- [Building a CHIP-8 Emulator (C++)](https://austinmorlan.com/posts/chip8_emulator/)
+  (Austin Morlan) — the walkthrough whose structure `docs/howto/` follows.
 - [CHIP-8 test suite](https://github.com/Timendus/chip8-test-suite)
   (Timendus) — the test ROMs in `roms/tests`, and the quirk definitions
   (VF reset, memory, display wait, clipping, shifting, jumping) behind
