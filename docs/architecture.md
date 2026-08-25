@@ -18,6 +18,8 @@ no JavaScript engine inside.
 | `src/font.ts` | the 16 built-in hexadecimal digit sprites |
 | `src/cli.ts` | argument parsing, usage text, quirk profile selection (pure functions, unit-tested) |
 | `src/main.ts` | the host: loads the ROM, runs the 60 Hz frame loop, maps keyboard to keypad, draws, beeps; or runs headless |
+| `src/web.ts`, `web/index.html` | the browser host: same core, canvas, keyboard and on-screen keypad, Web Audio beep; bundled by bun, no scriptc involved |
+| `scripts/build-web.ts` | bundles the browser host into `dist/web/` with the page, every ROM and a `roms.json` manifest; `--serve` hosts it locally |
 | `src/rl.d.ts` | ambient `declare function` signatures for the C shim; scriptc binds them through the FFI manifest |
 | `native/c8rl.c` | the shim: scalar-only C wrappers around the raylib calls the host needs |
 | `native/ffi.base.json` | the FFI manifest: one entry per shim function with its C ABI |
@@ -81,6 +83,20 @@ makes the headless mode an exact stand-in for the windowed one.
 `runHeadless()` replaces steps 1, 2, 4 and 5 with scripted key presses
 (`--press k@frame+hold`) and, after the last frame, `renderAscii()` printed to
 stdout followed by a status line with PC, I and the timers.
+
+## The browser host
+
+`src/web.ts` is the same loop against browser APIs: `requestAnimationFrame`
+with a 1/60 s accumulator (so a 144 Hz display still gets 60 CHIP-8 frames
+per second, and a background tab catches up by at most four frames),
+`keydown`/`keyup` by physical key code, pointer events on sixteen on-screen
+buttons, an `ImageData` of 64x32 pixels scaled onto the canvas, and a Web
+Audio square-wave oscillator whose gain follows the sound timer. The core
+does not run until a ROM is loaded. `bun run build:web` bundles it with
+`Bun.build` and copies the page and every ROM into `dist/web/`, a static
+site with no server-side part. scriptc plays no role here: the browser runs
+the TypeScript as JavaScript, which is the reason the core avoids anything
+either environment lacks.
 
 ## Build-time flow
 

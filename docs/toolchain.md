@@ -5,7 +5,7 @@ Two tools have to be installed: bun and zig. Everything else is either in
 
 ## bun
 
-bun is the only JavaScript runtime involved, in five roles:
+bun is the only JavaScript runtime involved, in six roles:
 
 | Role | Command |
 | ---- | ------- |
@@ -14,6 +14,7 @@ bun is the only JavaScript runtime involved, in five roles:
 | test runner | `bun test` runs `tests/*.test.ts` with `bun:test` |
 | development runtime | `bun src/main.ts rom.ch8 --headless 120` runs the emulator core without compiling; the `declare`d raylib functions are simply never called on that path |
 | host for the compiler | `bun node_modules/scriptc/dist/bootstrap.js build ...` runs scriptc itself |
+| bundler | `bun scripts/build-web.ts` calls `Bun.build` to turn `src/web.ts` into `dist/web/web.js` for browsers, and `Bun.serve` to host the result with `--serve` |
 
 The last role is the unusual one: scriptc declares `engines: node >= 24`, but
 it runs under bun and every result in this repository was produced that way.

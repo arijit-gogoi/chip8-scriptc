@@ -15,11 +15,13 @@ src/chip8.ts            CPU, memory, timers, display buffer, keypad, quirk switc
 src/font.ts             built-in hexadecimal font
 src/main.ts             frame loop, key mapping, headless mode
 src/cli.ts              argument parsing, usage text, quirk profile selection
+src/web.ts, web/        browser host: canvas, keyboard, on-screen keypad, Web Audio beep
 src/rl.d.ts             ambient FFI declarations for the raylib shim
 native/c8rl.c           scalar-only C wrappers around raylib
 native/ffi.base.json    FFI manifest (functions); the build adds libraries per platform
 native/vendor/          raylib source at the pinned tag, fetched by the build (ignored by git)
 scripts/build.ts        compiles raylib and the shim with zig cc, generates ffi.json, runs scriptc
+scripts/build-web.ts    bundles the browser host and copies the ROMs into dist/web/
 scripts/verify.ts       checks native executable output against bun running the same source
 tests/chip8.test.ts     opcode-level unit tests
 tests/cli.test.ts       argument parsing tests
@@ -89,6 +91,25 @@ checked against the interpreted one:
 ```
 dist\chip8.exe roms\tests\5-quirks.ch8 --headless 1500 --press 1@30
 ```
+
+## Browser
+
+```
+bun run build:web              # -> dist/web/: web.js, index.html, roms.json, roms/
+bun run build:web -- --serve   # same, then serve it at http://localhost:8080/
+```
+
+`src/web.ts` is a second host for the same core: bun bundles it to plain
+JavaScript (no scriptc, no wasm), `web/index.html` supplies a canvas, the
+controls and an on-screen keypad, and every ROM in `roms/` is copied next to
+it with a `roms.json` manifest, so the folder is a complete static site.
+Keyboard mapping and host keys are the same as the native build; `.ch8` files
+can be dropped on the page. Sound is a Web Audio square wave, started on the
+first key press because browsers require a user gesture.
+
+A WebAssembly build of the native executable is not possible: scriptc's only
+wasm target is `wasm32-wasi`, which excludes the native FFI, so raylib cannot
+be part of it.
 
 ## Tests
 

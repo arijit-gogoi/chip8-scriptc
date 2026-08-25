@@ -169,9 +169,12 @@ that the compiled program is the program you tested.
 ## Where to go from here
 
 - **Another platform layer.** The core does not import anything from the
-  host. Render `vm.display` to an HTML canvas at 60 fps with
-  `requestAnimationFrame`, wire `keydown`/`keyup` to `setKey`, and the same
-  `chip8.ts` runs in a browser.
+  host, so the same `chip8.ts` runs in a browser: `src/web.ts` in this
+  repository renders `vm.display` to a canvas from `requestAnimationFrame`,
+  wires `keydown`/`keyup` and on-screen buttons to `setKey`, and beeps with
+  a Web Audio oscillator. `bun run build:web` bundles it. Compare it with
+  `runWindowed` above: the loop is the same, only the six platform needs are
+  answered differently.
 - **SUPER-CHIP.** Add the `00CN`/`00FB`–`00FF`/`DXY0`/`FX30`/`FX75`/`FX85`
   instructions and a 128x64 mode; the quirks object already has the right
   preset.
