@@ -1,6 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
 import {
   Chip8,
   DISPLAY_HEIGHT,
@@ -12,8 +10,6 @@ import {
   type Quirks,
 } from "../src/chip8";
 import { FONT_ADDRESS } from "../src/font";
-
-const ROM_DIR = join(import.meta.dir, "..", "roms", "tests");
 
 /** Build a VM whose program consists of the given 16-bit opcodes. */
 function program(ops: number[], quirks: Quirks = chip8Quirks()): Chip8 {
@@ -342,16 +338,148 @@ describe("input", () => {
   });
 });
 
-describe("test-suite ROMs", () => {
-  const roms = ["1-chip8-logo.ch8", "2-ibm-logo.ch8", "3-corax+.ch8", "4-flags.ch8"];
-  for (const name of roms) {
-    const path = join(ROM_DIR, name);
-    test.skipIf(!existsSync(path))(`${name} runs without halting`, () => {
-      const vm = new Chip8(chip8Quirks());
-      vm.loadRom(readFileSync(path));
-      for (let frame = 0; frame < 300; frame++) vm.stepFrame(20);
-      expect(vm.halted).toBe(false);
-      expect(vm.display.some((p) => p !== 0)).toBe(true);
+describe("edge cases", () => {
+  test("8XY0 copies VY into VX", () => {
+    const vm = program([0x6100, 0x60aa, 0x6155, 0x8010]);
+    steps(vm, 4);
+    expect(vm.v[0]).toBe(0x55);
+    expect(vm.v[1]).toBe(0x55);
+  });
+
+  test("VF as destination keeps the flag for 8XY5 / 8XY7 / 8XY6 / 8XYE", () => {
+    const sub = program([0x6f05, 0x6103, 0x8f15]);
+    steps(sub, 3);
+    expect(sub.v[0xf]).toBe(1);
+
+    const rsub = program([0x6f03, 0x6105, 0x8f17]);
+    steps(rsub, 3);
+    expect(rsub.v[0xf]).toBe(1);
+
+    const shr = program([0x6f00, 0x6102, 0x8f16]);
+    steps(shr, 3);
+    expect(shr.v[0xf]).toBe(0);
+
+    const shl = program([0x6f00, 0x6180, 0x8f1e]);
+    steps(shl, 3);
+    expect(shl.v[0xf]).toBe(1);
+  });
+
+  test("X == Y operands read the value before it is written", () => {
+    const add = program([0x6005, 0x8004]);
+    steps(add, 2);
+    expect(add.v[0]).toBe(10);
+    expect(add.v[0xf]).toBe(0);
+
+    const carry = program([0x60ff, 0x8004]);
+    steps(carry, 2);
+    expect(carry.v[0]).toBe(0xfe);
+    expect(carry.v[0xf]).toBe(1);
+
+    const sub = program([0x6005, 0x8005]);
+    steps(sub, 2);
+    expect(sub.v[0]).toBe(0);
+    expect(sub.v[0xf]).toBe(1);
+
+    const shr = program([0x6003, 0x8006]);
+    steps(shr, 2);
+    expect(shr.v[0]).toBe(1);
+    expect(shr.v[0xf]).toBe(1);
+  });
+
+  test("FX33 at the boundaries", () => {
+    const zero = program([0x6000, 0xa300, 0xf033]);
+    steps(zero, 3);
+    expect([zero.memory[0x300], zero.memory[0x301], zero.memory[0x302]]).toEqual([0, 0, 0]);
+
+    const max = program([0x60ff, 0xa300, 0xf033]);
+    steps(max, 3);
+    expect([max.memory[0x300], max.memory[0x301], max.memory[0x302]]).toEqual([2, 5, 5]);
+  });
+
+  test("FX55 / FX65 with X = 0 and X = F", () => {
+    const one = program([0x6011, 0x6122, 0xa300, 0xf055]);
+    steps(one, 4);
+    expect(one.memory[0x300]).toBe(0x11);
+    expect(one.memory[0x301]).toBe(0);
+    expect(one.i).toBe(0x301);
+
+    const all = new Chip8(chip8Quirks());
+    const ops: number[] = [];
+    for (let r = 0; r < 16; r++) ops.push(0x6000 | (r << 8) | (0x10 + r));
+    ops.push(0xa300, 0xff55, 0xa300, 0xff65);
+    const rom = new Uint8Array(ops.length * 2);
+    ops.forEach((op, k) => {
+      rom[k * 2] = op >> 8;
+      rom[k * 2 + 1] = op & 0xff;
     });
-  }
+    all.loadRom(rom);
+    steps(all, 18);
+    for (let r = 0; r < 16; r++) expect(all.memory[0x300 + r]).toBe(0x10 + r);
+    expect(all.i).toBe(0x310);
+    for (let r = 0; r < 16; r++) all.v[r] = 0;
+    steps(all, 2);
+    for (let r = 0; r < 16; r++) expect(all.v[r]).toBe(0x10 + r);
+    expect(all.i).toBe(0x310);
+  });
+
+  test("DXY0 draws nothing and clears VF; 15-row sprites draw every row", () => {
+    const none = program([0x6f01, 0xa200, 0xd000]);
+    steps(none, 3);
+    expect(none.display.every((p) => p === 0)).toBe(true);
+    expect(none.v[0xf]).toBe(0);
+
+    const tall = program([0xa300, 0xd00f]);
+    for (let row = 0; row < 15; row++) tall.memory[0x300 + row] = 0x80;
+    steps(tall, 2);
+    for (let row = 0; row < 15; row++) expect(pixel(tall, 0, row)).toBe(1);
+    expect(pixel(tall, 0, 15)).toBe(0);
+  });
+
+  test("EX9E / EXA1 use only the low nibble of VX", () => {
+    const vm = program([0x6015, 0xe09e, 0x0000, 0xe0a1, 0x6101]);
+    vm.setKey(5, true);
+    steps(vm, 2);
+    expect(vm.pc).toBe(0x206);
+    vm.step();
+    expect(vm.pc).toBe(0x208);
+    vm.step();
+    expect(vm.v[1]).toBe(1);
+  });
+
+  test("BNNN wraps inside 4 KiB", () => {
+    const vm = program([0x60ff, 0xbfff]);
+    steps(vm, 2);
+    expect(vm.pc).toBe(0x0fe);
+  });
+
+  test("FX0A with a key already held waits for its release", () => {
+    const vm = program([0xf00a, 0x6101]);
+    vm.setKey(7, true);
+    steps(vm, 5);
+    expect(vm.waitingForKey).toBe(true);
+    expect(vm.v[1]).toBe(0);
+    vm.setKey(7, false);
+    steps(vm, 2);
+    expect(vm.v[0]).toBe(7);
+    expect(vm.v[1]).toBe(1);
+  });
+
+  test("CXNN produces varying values", () => {
+    const vm = program([0xc0ff, 0x1200]);
+    const seen = new Set<number>();
+    for (let k = 0; k < 32; k++) {
+      steps(vm, 2);
+      seen.add(vm.v[0]);
+    }
+    expect(seen.size).toBeGreaterThan(4);
+  });
+
+  test("halted interpreter ignores steps and frames", () => {
+    const vm = program([0x0123, 0x6101]);
+    vm.step();
+    expect(vm.halted).toBe(true);
+    expect(vm.stepFrame(10)).toBe(0);
+    vm.step();
+    expect(vm.v[1]).toBe(0);
+  });
 });

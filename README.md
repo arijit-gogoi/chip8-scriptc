@@ -8,13 +8,17 @@ scriptc's native FFI.
 ```
 src/chip8.ts            CPU, memory, timers, display buffer, keypad, quirk switches
 src/font.ts             built-in hexadecimal font
-src/main.ts             CLI, frame loop, key mapping, headless mode
+src/main.ts             frame loop, key mapping, headless mode
+src/cli.ts              argument parsing, usage text, quirk profile selection
 src/rl.d.ts             ambient FFI declarations for the raylib shim
 native/c8rl.c           scalar-only C wrappers around raylib
 native/ffi.base.json    FFI manifest (functions); the build adds libraries per platform
 native/vendor/          raylib source at the pinned tag, fetched by the build (ignored by git)
 scripts/build.ts        compiles raylib and the shim with zig cc, generates ffi.json, runs scriptc
-tests/chip8.test.ts     opcode-level unit tests (bun test)
+scripts/verify.ts       checks native executable output against bun running the same source
+tests/chip8.test.ts     opcode-level unit tests
+tests/cli.test.ts       argument parsing tests
+tests/roms.test.ts      Timendus test-suite framebuffer snapshots (tests/snapshots/)
 roms/                   Timendus' test suite and CC0 games (see roms/README.md)
 ```
 
@@ -80,6 +84,21 @@ checked against the interpreted one:
 ```
 dist\chip8.exe roms\tests\5-quirks.ch8 --headless 1500 --press 1@30
 ```
+
+## Tests
+
+```
+bun test          # opcodes, edge cases, argument parsing, test-suite snapshots
+bun run verify    # build, then diff native vs interpreted headless output over a ROM set
+```
+
+`tests/roms.test.ts` runs Timendus' test ROMs through the core and compares the
+framebuffer with `tests/snapshots/*.txt`; those files show every corax+ and
+flags row passing and all six quirks detected as expected for CHIP-8.
+`UPDATE_SNAPSHOTS=1 bun test tests/roms.test.ts` rewrites them after an
+intentional change. `scripts/verify.ts` covers what unit tests cannot: that
+the scriptc-compiled binary behaves exactly like the same TypeScript under
+bun, including error paths.
 
 ## Semantics
 
