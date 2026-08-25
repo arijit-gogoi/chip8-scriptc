@@ -1,5 +1,7 @@
 # chip8-scriptc
 
+[![CI](https://github.com/arijit-gogoi/chip8-scriptc/actions/workflows/ci.yml/badge.svg)](https://github.com/arijit-gogoi/chip8-scriptc/actions/workflows/ci.yml)
+
 A CHIP-8 interpreter written in plain TypeScript, compiled to a self-contained
 native executable with [scriptc](https://scriptc.dev) (no Node, no JS engine in
 the binary) and displayed with [raylib](https://www.raylib.com) through
