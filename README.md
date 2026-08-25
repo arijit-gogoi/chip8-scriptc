@@ -137,6 +137,41 @@ into a raylib audio stream while the sound timer is non-zero.
 The manifest's `libraries` entries are plain link inputs: the shim object file
 (`./c8rl.o`) and `./libraylib.a`.
 
+## References
+
+CHIP-8 specification and opcodes:
+
+- [CHIP-8 Instruction Set](https://github.com/mattmikolay/chip-8/wiki/CHIP%E2%80%908-Instruction-Set)
+  (mattmikolay) — the 35 opcodes and their original COSMAC VIP semantics; the
+  default `chip8` profile follows this table, including its footnotes on
+  `8XY6`/`8XYE` (shift VY) and `FX55`/`FX65` (I incremented).
+- [Mastering CHIP-8](https://github.com/mattmikolay/chip-8/wiki/Mastering-CHIP%E2%80%908)
+  (mattmikolay) — memory map, registers, 60 Hz timers, XOR sprite drawing,
+  keypad layout, font sprite data.
+- [Cowgod's Chip-8 Technical Reference v1.0](http://devernay.free.fr/hacks/chip8/C8TECH10.HTM)
+  — the classic reference; its `8XY6`/`8XYE` (shift VX) and `FX55`/`FX65`
+  (I unchanged) descriptions correspond to the `schip` profile.
+- [CHIP-8 opcode table](https://en.wikipedia.org/wiki/CHIP-8#Opcode_table)
+  (Wikipedia) — SUPER-CHIP-1991-based table with footnotes on the original
+  behaviour; used to cross-check opcode coverage.
+- [An Introduction to Chip-8 Emulation using the Rust Programming Language](https://github.com/aquova/chip8-book)
+  (aquova) — emulator structure reference.
+- [CHIP-8 test suite](https://github.com/Timendus/chip8-test-suite)
+  (Timendus) — the test ROMs in `roms/tests`, and the quirk definitions
+  (VF reset, memory, display wait, clipping, shifting, jumping) behind
+  `Quirks` in `src/chip8.ts`.
+- [chip8Archive](https://github.com/JohnEarnest/chip8Archive) (John Earnest)
+  — the CC0 games in `roms/games`.
+
+Toolchain:
+
+- [scriptc](https://scriptc.dev) — [introduction](https://scriptc.dev/introduction),
+  [native FFI](https://scriptc.dev/ffi), [limitations](https://scriptc.dev/limitations),
+  [platforms](https://scriptc.dev/platforms); source at
+  [vercel-labs/scriptc](https://github.com/vercel-labs/scriptc).
+- [raylib](https://www.raylib.com) — API from `raylib.h` 6.0; source at
+  [raysan5/raylib](https://github.com/raysan5/raylib).
+
 ## scriptc static-tier constraints
 
 The code stays inside scriptc's static tier (no `--dynamic`), which means:
