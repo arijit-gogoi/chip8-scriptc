@@ -6,6 +6,7 @@
   "description": "CHIP-8 emulator written in TypeScript, compiled to a native executable with scriptc, displayed with raylib",
   "scripts": {
     "build": "bun scripts/build.ts",
+    "build:web": "bun scripts/build-web.ts",
     "test": "bun test",
     "verify": "bun scripts/verify.ts"
   },
