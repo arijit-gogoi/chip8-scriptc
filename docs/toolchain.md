@@ -85,10 +85,12 @@ zig cc -c -O2 -std=gnu99 -w -D_GNU_SOURCE -DPLATFORM_DESKTOP_GLFW -DGRAPHICS_API
 zig ar rcs native/build/libraylib.a native/build/raylib/*.o
 ```
 
-`rglfw.c` picks the window system from the target (`_GLFW_WIN32` on Windows,
-X11 on Linux, Cocoa on macOS). Warnings are disabled for this third-party
-code; the shim is compiled with `-Wall -Wextra`. The seven compiles run in
-parallel and the archive is cached until `--clean`.
+`rglfw.c` picks the window system from the target on Windows (`_GLFW_WIN32`)
+and macOS (Cocoa); on Linux the build passes `-D_GLFW_X11` because raylib 6.0
+insists on an explicit choice and Wayland would need generated protocol
+sources. Warnings are disabled for this third-party code; the shim is
+compiled with `-Wall -Wextra`. The seven compiles run in parallel and the
+archive is cached until `--clean`.
 
 System libraries per platform, written into the manifest:
 

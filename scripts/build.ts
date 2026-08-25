@@ -95,11 +95,14 @@ async function buildRaylib(): Promise<string> {
   const objectDir = join(buildDir, "raylib");
   mkdirSync(objectDir, { recursive: true });
   // Flags follow raylib's own Makefile for PLATFORM_DESKTOP_GLFW. Third-party
-  // code: warnings off. rglfw.c picks the window system from the target.
+  // code: warnings off. rglfw.c picks the window system from the target on
+  // Windows and macOS; Linux must choose, and X11 is the one that needs no
+  // generated protocol sources.
   const flags = [
     "-c", "-O2", "-std=gnu99", "-w",
     "-D_GNU_SOURCE", "-DPLATFORM_DESKTOP_GLFW", "-DGRAPHICS_API_OPENGL_33",
     "-fno-strict-aliasing",
+    ...(platform === "linux" ? ["-D_GLFW_X11"] : []),
     `-I${raylibSrc}`, `-I${join(raylibSrc, "external", "glfw", "include")}`,
   ];
   const objects = RAYLIB_SOURCES.map((source) => join(objectDir, basename(source, ".c") + ".o"));
