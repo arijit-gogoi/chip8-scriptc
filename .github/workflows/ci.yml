@@ -28,6 +28,28 @@ jobs:
           name: web
           path: dist/web
 
+  pages:
+    name: deploy browser build to GitHub Pages
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run build:web
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/web
+      - id: deploy
+        uses: actions/deploy-pages@v4
+
   native:
     name: native build and verify (${{ matrix.os }})
     strategy:

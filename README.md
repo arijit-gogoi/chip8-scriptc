@@ -99,6 +99,9 @@ dist\chip8.exe roms\tests\5-quirks.ch8 --headless 1500 --press 1@30
 
 ## Browser
 
+Live: <https://arijit-gogoi.github.io/chip8-scriptc/> (deployed by CI from
+`main`).
+
 ```
 bun run build:web              # -> dist/web/: web.js, index.html, roms.json, roms/
 bun run build:web -- --serve   # same, then serve it at http://localhost:8080/
