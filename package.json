@@ -1,0 +1,16 @@
+{
+  "name": "chip8-scriptc",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "CHIP-8 emulator written in TypeScript, compiled to a native executable with scriptc, displayed with raylib",
+  "scripts": {
+    "build": "bun scripts/build.ts",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "scriptc": "0.0.35",
+    "typescript": "^5.9.0"
+  }
+}

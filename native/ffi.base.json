@@ -1,0 +1,24 @@
+{
+  "ffi_format": 1,
+  "functions": [
+    { "name": "c8rl_init", "symbol": "c8rl_init", "params": ["i32", "i32", "string", "i32"], "returns": "void" },
+    { "name": "c8rl_close", "symbol": "c8rl_close", "params": [], "returns": "void" },
+    { "name": "c8rl_should_close", "symbol": "c8rl_should_close", "params": [], "returns": "bool" },
+    { "name": "c8rl_screen_width", "symbol": "c8rl_screen_width", "params": [], "returns": "i32" },
+    { "name": "c8rl_screen_height", "symbol": "c8rl_screen_height", "params": [], "returns": "i32" },
+
+    { "name": "c8rl_begin", "symbol": "c8rl_begin", "params": [], "returns": "void" },
+    { "name": "c8rl_end", "symbol": "c8rl_end", "params": [], "returns": "void" },
+    { "name": "c8rl_clear", "symbol": "c8rl_clear", "params": ["u32"], "returns": "void" },
+    { "name": "c8rl_draw_display", "symbol": "c8rl_draw_display", "params": ["bytes", "i32", "i32", "i32", "i32", "i32", "u32", "u32"], "returns": "void" },
+    { "name": "c8rl_draw_text", "symbol": "c8rl_draw_text", "params": ["string", "i32", "i32", "i32", "u32"], "returns": "void" },
+
+    { "name": "c8rl_key_down", "symbol": "c8rl_key_down", "params": ["i32"], "returns": "bool" },
+    { "name": "c8rl_key_pressed", "symbol": "c8rl_key_pressed", "params": ["i32"], "returns": "bool" },
+
+    { "name": "c8rl_audio_init", "symbol": "c8rl_audio_init", "params": [], "returns": "void" },
+    { "name": "c8rl_audio_close", "symbol": "c8rl_audio_close", "params": [], "returns": "void" },
+    { "name": "c8rl_beep", "symbol": "c8rl_beep", "params": ["bool"], "returns": "void" },
+    { "name": "c8rl_audio_update", "symbol": "c8rl_audio_update", "params": [], "returns": "void" }
+  ]
+}
