@@ -44,10 +44,15 @@ scriptc caches compiled runtime objects and whole-program results per
 compiler and target, so a rebuild with unchanged sources takes seconds and a
 change to one module takes roughly half a minute.
 
-The package declares `engines: node >= 24`. It is pinned as a devDependency
-and executed by bun; every check in this repository (unit tests, snapshots,
-`bun run verify`) runs against binaries produced that way. `SCRIPTC=<command>`
-overrides the invocation if another runtime or a global install is wanted.
+The package declares `engines: node >= 24` and is pinned as a devDependency.
+On Windows the build executes it with bun, and every check in this repository
+runs against binaries produced that way. On Linux and macOS it needs node:
+scriptc's frontend is TypeScript 7's native compiler (`tsgo`), spawned as a
+child and driven over a synchronous pipe whose file descriptor it reads from
+Node's internal `stdout._handle`; bun's `child_process` exposes that on
+Windows but not elsewhere, and the compiler crashes at start-up. The build
+script therefore picks node when the platform is not Windows and node is on
+`PATH`. `SCRIPTC="<command line>"` overrides the choice.
 
 ## The FFI to raylib
 

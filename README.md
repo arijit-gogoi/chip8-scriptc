@@ -38,11 +38,14 @@ roms/                   Timendus' test suite and CC0 games (see roms/README.md)
 | [bun](https://bun.sh) | scripts, tests, package install, running the scriptc compiler |
 | [zig](https://ziglang.org) 0.13+ | `zig cc` compiles raylib, the shim, and scriptc's runtime |
 | git | first build only: sparse-clones raylib's `src` at the pinned tag (about 15 MB) |
+| Node 24+ (Linux and macOS only) | runs the scriptc compiler there; on Windows bun does |
 
-scriptc is a pinned devDependency and runs under bun. The build sets
+scriptc is a pinned devDependency. On Windows the build runs it under bun;
+on other platforms bun's `child_process` lacks the pipe handle that scriptc's
+TypeScript 7 frontend reads, so the build uses node when it is on `PATH`.
+`SCRIPTC="<command line>"` overrides that choice. The build sets
 `SCRIPTC_CC=zigcc`, so every object in the executable (raylib, shim, scriptc
-runtime) comes from the same compiler and C runtime. `SCRIPTC=<command>`
-overrides how scriptc is invoked.
+runtime) comes from the same compiler and C runtime.
 
 Platforms: Windows x64 is tested. Linux needs the X11 development headers
 (raylib's GLFW backend; the manifest links `GL X11 m pthread dl rt`). macOS is

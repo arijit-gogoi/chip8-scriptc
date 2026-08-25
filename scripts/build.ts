@@ -7,13 +7,13 @@
  *   2. native/c8rl.c                   --zig cc-->  native/build/c8rl.o
  *   3. native/ffi.base.json + libraries + system libraries  -->  native/build/ffi.json
  *   4. SCRIPTC_CC=zigcc scriptc build src/main.ts --ffi native/build/ffi.json -o dist/chip8[.exe]
- *      (scriptc runs under bun from node_modules)
+ *      (scriptc from node_modules, run by bun on Windows and by node elsewhere)
  *
  * Usage: bun scripts/build.ts [--clean] [--run <rom> [emulator args...]]
  *
  * Environment:
- *   SCRIPTC   command used instead of "bun node_modules/scriptc/dist/bootstrap.js"
- *             (for example SCRIPTC=scriptc to use a global install under node)
+ *   SCRIPTC   command line used to start scriptc instead of the default,
+ *             for example SCRIPTC="node node_modules/scriptc/dist/bootstrap.js"
  */
 import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -140,14 +140,25 @@ function writeManifest(): string {
   return manifestPath;
 }
 
+/**
+ * How to start the scriptc compiler. bun runs it on Windows; on other
+ * platforms bun's child_process lacks the pipe handle that TypeScript 7's
+ * native compiler channel reads, so node (24+) is used when available.
+ * SCRIPTC="<command> [args]" overrides the choice.
+ */
+function scriptcCommand(): string[] {
+  const override = process.env.SCRIPTC;
+  if (override !== undefined && override.trim() !== "") return override.trim().split(/\s+/);
+  const bootstrap = join(root, "node_modules", "scriptc", "dist", "bootstrap.js");
+  if (!existsSync(bootstrap)) fail("scriptc not installed: run bun install");
+  if (platform !== "win32" && spawnSync("node", ["--version"]).status === 0) return ["node", bootstrap];
+  return ["bun", bootstrap];
+}
+
 function buildExecutable(manifestPath: string): string {
   mkdirSync(distDir, { recursive: true });
   const output = join(distDir, exeName);
-  const override = process.env.SCRIPTC;
-  const command = override !== undefined && override !== ""
-    ? [override]
-    : ["bun", join(root, "node_modules", "scriptc", "dist", "bootstrap.js")];
-  if (override === undefined && !existsSync(command[1])) fail("scriptc not installed: run bun install");
+  const command = scriptcCommand();
   run("scriptc", command[0], [...command.slice(1), "build", join(root, "src", "main.ts"), "--ffi", manifestPath, "-o", output], {
     SCRIPTC_CC: "zigcc",
   });

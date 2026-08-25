@@ -41,6 +41,13 @@ jobs:
       - uses: mlugg/setup-zig@v2
         with:
           version: ${{ env.ZIG_VERSION }}
+      # scriptc's TypeScript 7 frontend talks to a native tsgo child over a
+      # pipe handle that bun's child_process only provides on Windows; the
+      # build script runs the compiler under node elsewhere.
+      - uses: actions/setup-node@v4
+        if: runner.os == 'Linux'
+        with:
+          node-version: 24
       - name: raylib build dependencies (X11)
         if: runner.os == 'Linux'
         run: |

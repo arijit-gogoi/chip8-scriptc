@@ -13,12 +13,14 @@ bun is the only JavaScript runtime involved, in six roles:
 | script runner | `bun scripts/build.ts`, `bun scripts/verify.ts` — TypeScript executed directly, using `Bun.spawn` for parallel compiles |
 | test runner | `bun test` runs `tests/*.test.ts` with `bun:test` |
 | development runtime | `bun src/main.ts rom.ch8 --headless 120` runs the emulator core without compiling; the `declare`d raylib functions are simply never called on that path |
-| host for the compiler | `bun node_modules/scriptc/dist/bootstrap.js build ...` runs scriptc itself |
+| host for the compiler (Windows) | `bun node_modules/scriptc/dist/bootstrap.js build ...` runs scriptc itself; on Linux and macOS the build uses node instead (see [scriptc.md](scriptc.md)) |
 | bundler | `bun scripts/build-web.ts` calls `Bun.build` to turn `src/web.ts` into `dist/web/web.js` for browsers, and `Bun.serve` to host the result with `--serve` |
 
-The last role is the unusual one: scriptc declares `engines: node >= 24`, but
-it runs under bun and every result in this repository was produced that way.
-The version is pinned so that an upgrade is a deliberate, re-verified step.
+The compiler role is the unusual one: scriptc declares `engines: node >= 24`,
+but on Windows it runs under bun and every result in this repository was
+produced that way. Elsewhere bun cannot host it, so Linux and macOS builds
+also need node. The version is pinned so that an upgrade is a deliberate,
+re-verified step.
 
 ## zig
 
