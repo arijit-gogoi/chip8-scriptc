@@ -218,7 +218,7 @@ Toolchain:
 
 The build passes `--tier static-only`, so any construct that scriptc cannot
 compile to native code is a build error, and `scriptc coverage src/main.ts
---ffi native/build/ffi.json` reports all 506 statements as static. The code
+--ffi native/build/ffi.json` reports the whole program as static. The code
 was first written against scriptc 0.0.35, whose static tier forced a few
 rewrites:
 
@@ -229,8 +229,9 @@ rewrites:
 - arrays are dense and out-of-bounds indexing traps: `process.argv` is copied
   with explicit length checks.
 
-None of these apply to scriptc 0.4.17: each construct compiles, and an
-out-of-range array read returns `undefined` as in JavaScript. The code keeps
-the original forms, which are still ordinary TypeScript. What still holds is
-that runtime traps cannot be caught, so a bad opcode halts the interpreter
-instead of throwing.
+In scriptc 0.4.17 the first four constructs compile. The out-of-range reads
+tested returned `undefined`, as in JavaScript, but scriptc's documentation
+still lists out-of-range reads of statically typed arrays among the traps
+that end the process, and runtime traps still cannot be caught. The code
+keeps the original forms, which are still ordinary TypeScript: memory indexes
+stay masked, and a bad opcode halts the interpreter instead of throwing.

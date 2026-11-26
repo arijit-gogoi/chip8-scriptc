@@ -15,7 +15,7 @@ Code that scriptc cannot compile to native code is a compile error with an
 `SCnnnn` code and a rewrite hint. The build passes `--tier static-only`, which
 keeps it that way even if a later release starts moving such code to a dynamic
 tier. `scriptc coverage src/main.ts --ffi native/build/ffi.json` reports how
-much of the program compiles natively; here it is all 506 statements.
+much of the program compiles natively; here it is the whole program.
 
 The project pins scriptc 0.4.17. It was first built with 0.0.35, which had a
 narrower static tier and an optional embedded JavaScript engine (`--dynamic`,
@@ -148,7 +148,7 @@ still compile.
 | `TypedArray.fill` has no lowering | `clearBytes()` loops | compiles |
 | compound element assignment (`a[i] ^= v`) is unsupported | `drawSprite` uses an explicit read-modify-write | compiles |
 | `number.toString(radix)` is dynamic-tier only | `hex()` builds the string from a digit table | compiles |
-| arrays are dense; out-of-bounds reads trap and are not catchable | `process.argv` is copied with an explicit length loop; every memory index is masked with `& 0xfff` | an out-of-range read returns `undefined`, as in JavaScript |
+| arrays are dense; out-of-bounds reads trap and are not catchable | `process.argv` is copied with an explicit length loop; every memory index is masked with `& 0xfff` | the reads tested returned `undefined`, as in JavaScript, but scriptc's docs still list out-of-range reads of statically typed arrays as uncatchable traps |
 | `==` only between operands of the same type | `===` everywhere | compiles |
 | record types are exact structs | `Options` has every field, no optional properties; `Quirks` presets are built field by field | optional properties compile |
 | `any` is an error without `--dynamic` | none in the code | compiles, even with `--tier static-only` |
