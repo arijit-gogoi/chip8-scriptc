@@ -1,21 +1,23 @@
 #!/usr/bin/env bun
 /**
- * Build pipeline. One C toolchain (zig cc) compiles everything: the vendored
- * raylib sources, the FFI shim, and scriptc's own runtime.
+ * Build pipeline. zig cc compiles the C code (the vendored raylib sources and
+ * the FFI shim); scriptc compiles the TypeScript and links it with its
+ * precompiled runtime pack, using zig as the linker on Windows and clang on
+ * glibc Linux.
  *
  *   1. native/vendor/raylib-<ver>/src  --zig cc-->  native/build/libraylib.a   (cached)
  *   2. native/c8rl.c                   --zig cc-->  native/build/c8rl.o
  *   3. native/ffi.base.json + libraries + system libraries  -->  native/build/ffi.json
- *   4. SCRIPTC_CC=zigcc scriptc build src/main.ts --ffi native/build/ffi.json -o dist/chip8[.exe]
- *      (scriptc from node_modules, run by bun on Windows and by node elsewhere)
+ *   4. scriptc build src/main.ts --tier static-only --ffi native/build/ffi.json -o dist/chip8[.exe]
+ *      (scriptc is the native compiler installed in node_modules/scriptc/bin)
  *
  * Usage: bun scripts/build.ts [--clean] [--run <rom> [emulator args...]]
  *
  * Environment:
- *   SCRIPTC   command line used to start scriptc instead of the default,
- *             for example SCRIPTC="node node_modules/scriptc/dist/bootstrap.js"
+ *   SCRIPTC   command line used to start scriptc instead of the installed
+ *             compiler, for example SCRIPTC=scriptc for a global install
  */
-import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -124,7 +126,7 @@ function systemLibraries(): string[] {
     case "linux":
       return ["m", "pthread", "dl", "rt", "GL", "X11"];
     default:
-      return fail(`${platform}: raylib needs frameworks that scriptc's FFI manifest cannot express`);
+      return fail(`${platform}: not supported by this build (untested; raylib needs system frameworks, which only an ffi_format 7 manifest can list)`);
   }
 }
 
@@ -141,27 +143,27 @@ function writeManifest(): string {
 }
 
 /**
- * How to start the scriptc compiler. bun runs it on Windows; on other
- * platforms bun's child_process lacks the pipe handle that TypeScript 7's
- * native compiler channel reads, so node (24+) is used when available.
+ * How to start the scriptc compiler. The scriptc package installs a native
+ * executable, named scriptc.exe on every platform, from its postinstall
+ * script; until that script has run, the file is a small placeholder.
  * SCRIPTC="<command> [args]" overrides the choice.
  */
 function scriptcCommand(): string[] {
   const override = process.env.SCRIPTC;
   if (override !== undefined && override.trim() !== "") return override.trim().split(/\s+/);
-  const bootstrap = join(root, "node_modules", "scriptc", "dist", "bootstrap.js");
-  if (!existsSync(bootstrap)) fail("scriptc not installed: run bun install");
-  if (platform !== "win32" && spawnSync("node", ["--version"]).status === 0) return ["node", bootstrap];
-  return ["bun", bootstrap];
+  const compiler = join(root, "node_modules", "scriptc", "bin", "scriptc.exe");
+  if (!existsSync(compiler)) fail("scriptc not installed: run bun install");
+  if (statSync(compiler).size < 4096) {
+    fail("scriptc's native compiler is not installed: its postinstall script did not run (run bun install; package.json lists scriptc in trustedDependencies)");
+  }
+  return [compiler];
 }
 
 function buildExecutable(manifestPath: string): string {
   mkdirSync(distDir, { recursive: true });
   const output = join(distDir, exeName);
   const command = scriptcCommand();
-  run("scriptc", command[0], [...command.slice(1), "build", join(root, "src", "main.ts"), "--ffi", manifestPath, "-o", output], {
-    SCRIPTC_CC: "zigcc",
-  });
+  run("scriptc", command[0], [...command.slice(1), "build", join(root, "src", "main.ts"), "--tier", "static-only", "--ffi", manifestPath, "-o", output]);
   return output;
 }
 

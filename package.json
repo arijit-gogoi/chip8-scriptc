@@ -12,7 +12,10 @@
   },
   "devDependencies": {
     "@types/bun": "latest",
-    "scriptc": "0.0.35",
+    "scriptc": "0.4.17",
     "typescript": "^5.9.0"
-  }
+  },
+  "trustedDependencies": [
+    "scriptc"
+  ]
 }
