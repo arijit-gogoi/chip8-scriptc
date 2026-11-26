@@ -106,7 +106,6 @@ function main(): void {
     if (parsed.error !== "") console.log(parsed.error);
     console.log(USAGE);
     process.exit(parsed.error === "" ? 0 : 2);
-    return;
   }
   const opts = parsed.options;
 
@@ -116,7 +115,6 @@ function main(): void {
   } catch {
     console.log(`cannot read ROM ${opts.rom}`);
     process.exit(1);
-    return;
   }
 
   const vm = new Chip8(quirksFor(opts));
@@ -126,7 +124,6 @@ function main(): void {
     const reason = err instanceof Error ? err.message : "invalid ROM";
     console.log(`cannot load ROM ${opts.rom}: ${reason}`);
     process.exit(1);
-    return;
   }
 
   if (opts.headless) runHeadless(vm, opts);
