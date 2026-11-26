@@ -10,7 +10,10 @@ scriptc's native FFI.
 Documentation: [docs/](docs/README.md) explains how the repository fits
 together (architecture, scriptc, the bun/zig/raylib toolchain);
 [docs/howto/](docs/howto/README.md) is a tutorial on writing a CHIP-8
-emulator in TypeScript, following the code in `src/`.
+emulator in TypeScript, following the code in `src/`. The blog post
+[docs/blog/chip8-scriptc.md](docs/blog/chip8-scriptc.md) tells the story of
+the project: what scriptc asked of the code, the toolchain, and how the
+native binary compares with bun.
 
 ```
 src/chip8.ts            CPU, memory, timers, display buffer, keypad, quirk switches
