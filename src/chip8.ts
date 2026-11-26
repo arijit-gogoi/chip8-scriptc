@@ -56,7 +56,7 @@ export class Chip8 {
   readonly memory = new Uint8Array(MEMORY_SIZE);
   /** General purpose registers V0..VF. */
   readonly v = new Uint8Array(REGISTER_COUNT);
-  /** Return addresses (a plain array: scriptc has no Uint16Array yet). */
+  /** Return addresses (a plain array: scriptc 0.0.35 had no Uint16Array). */
   readonly stack: number[] = zeros(STACK_DEPTH);
   /** One byte per pixel, row-major, 1 = lit. */
   readonly display = new Uint8Array(DISPLAY_WIDTH * DISPLAY_HEIGHT);
@@ -431,7 +431,7 @@ export function renderAscii(display: Uint8Array): string {
   return out;
 }
 
-/** Zero every element (scriptc has no TypedArray.fill yet). */
+/** Zero every element (scriptc 0.0.35 had no TypedArray.fill). */
 function clearBytes(bytes: Uint8Array): void {
   for (let k = 0; k < bytes.length; k++) bytes[k] = 0;
 }

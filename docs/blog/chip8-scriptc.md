@@ -19,10 +19,10 @@ code, where the build fought back, and how the native binary compares with
 bun.
 
 > **Version note.** Everything here was built in August 2026 against scriptc
-> 0.0.35, which the repository pins. scriptc has moved quickly since and is
-> now in its 0.4 series. Where its changelog says a limitation described below
-> has changed, I point to the entry. I have not re-tested with the newer
-> versions.
+> 0.0.35. scriptc has moved quickly since; the repository now pins 0.4.17,
+> and its build script and documentation describe that version rather than
+> the build below. Where scriptc's changelog says a limitation described here
+> has changed, I point to the entry.
 
 ## Why CHIP-8
 

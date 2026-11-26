@@ -105,12 +105,13 @@ native/vendor/raylib-6.0/src/*.c  --zig cc-->  native/build/raylib/*.o  --zig ar
 native/c8rl.c                     --zig cc-->  native/build/c8rl.o
 native/ffi.base.json  +  libraries  +  system_libraries   --->  native/build/ffi.json
 src/main.ts (+ chip8.ts, cli.ts, font.ts, rl.d.ts)
-        --scriptc build --ffi native/build/ffi.json  (SCRIPTC_CC=zigcc)-->  dist/chip8.exe
+        --scriptc build --tier static-only --ffi native/build/ffi.json-->  dist/chip8.exe
 ```
 
 scriptc type-checks the program, lowers it to LLVM IR (`dist/main.ll`),
-compiles that and its own C runtime with `zig cc`, and links everything with
-the two archives and the system libraries named in the manifest. Details in
+compiles that to machine code, and links it with scriptc's precompiled
+runtime, the shim object, the raylib archive and the system libraries named
+in the manifest. zig is the linker on Windows, clang on Linux. Details in
 [scriptc.md](scriptc.md) and [toolchain.md](toolchain.md).
 
 ## Tests and verification

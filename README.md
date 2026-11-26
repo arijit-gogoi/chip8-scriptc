@@ -38,38 +38,39 @@ roms/                   Timendus' test suite and CC0 games (see roms/README.md)
 
 | Tool | Used for |
 | ---- | -------- |
-| [bun](https://bun.sh) | scripts, tests, package install, running the scriptc compiler |
-| [zig](https://ziglang.org) 0.13+ | `zig cc` compiles raylib, the shim, and scriptc's runtime |
+| [bun](https://bun.sh) | scripts, tests, package install |
+| [zig](https://ziglang.org) 0.16+ | `zig cc` compiles raylib and the shim; on Windows scriptc also links the executable with zig |
 | git | first build only: sparse-clones raylib's `src` at the pinned tag (about 15 MB) |
-| Node 24+ (Linux and macOS only) | runs the scriptc compiler there; on Windows bun does |
+| clang (Linux only) | scriptc's linker on glibc Linux |
 
-scriptc is a pinned devDependency. On Windows the build runs it under bun;
-on other platforms bun's `child_process` lacks the pipe handle that scriptc's
-TypeScript 7 frontend reads, so the build uses node when it is on `PATH`.
-`SCRIPTC="<command line>"` overrides that choice. The build sets
-`SCRIPTC_CC=zigcc`, so every object in the executable (raylib, shim, scriptc
-runtime) comes from the same compiler and C runtime.
+scriptc (0.4.17) is a pinned devDependency. Its package installs a native
+compiler for the platform from a postinstall script, which bun runs because
+`package.json` lists scriptc in `trustedDependencies`; the compiler itself
+needs no JavaScript runtime. scriptc links the program with its own
+precompiled runtime, the raylib archive and the shim object. On Windows the
+linker is zig, so raylib, the shim and the runtime meet in zig's mingw-w64 C
+runtime. `SCRIPTC="<command line>"` replaces the installed compiler, for
+example with a global install.
 
 Platforms: Windows x64 is tested. Linux needs the X11 development headers
 (raylib's GLFW backend; the manifest links `GL X11 m pthread dl rt`). macOS is
-refused by the build: raylib needs frameworks, which scriptc's FFI manifest
-cannot express.
+refused by the build: it is untested, and raylib's system frameworks would
+need an `ffi_format` 7 manifest.
 
 ## Build and run
 
 ```
 bun install
 bun test                       # opcode unit tests (pure TypeScript, runs under bun)
-bun run build                  # -> dist/chip8.exe (about 2.3 MB, raylib included)
+bun run build                  # -> dist/chip8.exe (about 1.9 MB, raylib included)
 bun run build -- --clean       # also rebuild raylib (otherwise cached in native/build)
 dist\chip8.exe roms\games\outlaw.ch8
 bun run build -- --run roms\tests\3-corax+.ch8
 ```
 
-A clean build takes about 80 s on a laptop (raylib ~15 s, scriptc ~30 s).
-Incremental builds skip raylib, and scriptc caches unchanged programs, so a
-rebuild without source changes takes a couple of seconds. zig's linker writes a
-`chip8.pdb` next to the executable; it is debug info and can be deleted.
+The first build takes a couple of minutes, mostly zig building its C runtime
+and raylib. zig caches both and scriptc caches compiled programs, so later
+builds take seconds, even with `--clean`.
 
 ```
 usage: chip8 <rom.ch8> [options]
@@ -163,9 +164,11 @@ detected as expected).
 ## FFI
 
 scriptc binds signature-only `declare function` declarations to C symbols via a
-JSON manifest (`--ffi`). Supported argument classes are numbers (`f64`, `i32`,
-`u32`, `u8`), `bool`, `string` (pointer + length) and `bytes`
-(`Uint8Array`, pointer + length). Structs cannot cross the boundary, so
+JSON manifest (`--ffi`). The manifest uses `ffi_format` 1, whose argument
+classes are numbers (`f64`, `i32`, `u32`, `u8`), `bool`, `string` (pointer +
+length) and `bytes` (`Uint8Array`, pointer + length); later formats add
+callbacks and more classes, which this project does not need. Structs cannot
+cross the boundary, so
 `native/c8rl.c` exposes raylib as scalar functions: colours travel as
 `0xRRGGBBAA` integers and the whole 64x32 framebuffer is passed once per frame
 as a byte buffer (`c8rl_draw_display`). Audio is a 440 Hz square wave pushed
@@ -213,7 +216,11 @@ Toolchain:
 
 ## scriptc static-tier constraints
 
-The code stays inside scriptc's static tier (no `--dynamic`), which means:
+The build passes `--tier static-only`, so any construct that scriptc cannot
+compile to native code is a build error, and `scriptc coverage src/main.ts
+--ffi native/build/ffi.json` reports all 506 statements as static. The code
+was first written against scriptc 0.0.35, whose static tier forced a few
+rewrites:
 
 - no `Uint16Array`: the call stack is a plain `number[]`;
 - no `TypedArray.fill`: explicit loops;
@@ -221,3 +228,9 @@ The code stays inside scriptc's static tier (no `--dynamic`), which means:
 - no `number.toString(radix)`: hand-rolled hex formatter;
 - arrays are dense and out-of-bounds indexing traps: `process.argv` is copied
   with explicit length checks.
+
+None of these apply to scriptc 0.4.17: each construct compiles, and an
+out-of-range array read returns `undefined` as in JavaScript. The code keeps
+the original forms, which are still ordinary TypeScript. What still holds is
+that runtime traps cannot be caught, so a bad opcode halts the interpreter
+instead of throwing.

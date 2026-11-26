@@ -113,9 +113,9 @@ sp = 0;
 ```
 
 (`zeros(n)` just builds an array of `n` zeros. A `Uint16Array` would be the
-natural choice; this project uses a plain array because the compiler it is
-built with does not support `Uint16Array` yet. A `Uint16Array` works fine
-under bun.)
+natural choice; this project uses a plain array because scriptc 0.0.35, the
+compiler version it was first built with, did not support `Uint16Array`.
+Current scriptc and bun both handle a `Uint16Array` fine.)
 
 ## The timers
 

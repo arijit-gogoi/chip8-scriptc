@@ -5,54 +5,58 @@
 [scriptc](https://scriptc.dev) is an experimental compiler from Vercel Labs
 that turns ordinary TypeScript into a native executable. It type-checks the
 program with the real TypeScript compiler, lowers it to LLVM IR, compiles that
-together with a small C runtime, and links a self-contained binary. There is
-no V8, no QuickJS and no interpreter in the output: strings, arrays, `Map`,
-typed arrays, `process`, `fs` and the rest are native implementations in the
-runtime, and the program's own functions are machine code.
+to machine code, and links it with a precompiled C runtime into a
+self-contained binary. There is no V8, no QuickJS and no interpreter in the
+output: strings, arrays, `Map`, typed arrays, `process`, `fs` and the rest are
+native implementations in the runtime, and the program's own functions are
+machine code.
 
-Every language construct falls into one of three tiers:
+Code that scriptc cannot compile to native code is a compile error with an
+`SCnnnn` code and a rewrite hint. The build passes `--tier static-only`, which
+keeps it that way even if a later release starts moving such code to a dynamic
+tier. `scriptc coverage src/main.ts --ffi native/build/ffi.json` reports how
+much of the program compiles natively; here it is all 506 statements.
 
-- **static** — compiled to native code with Node-compatible semantics. This
-  project lives entirely in this tier.
-- **dynamic** — with `--dynamic`, scriptc embeds quickjs-ng (about 620 KB) to
-  run `any`-typed code and npm packages. Not used here.
-- **rejected** — a compile error with an `SCnnnn` code and a rewrite hint.
-  `scriptc coverage src/main.ts` reports which tier each construct lands in.
+The project pins scriptc 0.4.17. It was first built with 0.0.35, which had a
+narrower static tier and an optional embedded JavaScript engine (`--dynamic`,
+removed in 0.3.0).
 
 ## How the build invokes it
 
-`scripts/build.ts` runs, with `SCRIPTC_CC=zigcc` in the environment:
+`scripts/build.ts` runs:
 
 ```
-bun node_modules/scriptc/dist/bootstrap.js build src/main.ts --ffi native/build/ffi.json -o dist/chip8.exe
+node_modules/scriptc/bin/scriptc.exe build src/main.ts --tier static-only --ffi native/build/ffi.json -o dist/chip8.exe
 ```
 
 - `build src/main.ts` — the entry module; imports (`./chip8`, `./cli`,
   `./font`) and the `/// <reference path="./rl.d.ts" />` are followed by
   TypeScript's module resolution.
+- `--tier static-only` — fail the build instead of accepting code outside the
+  static tier.
 - `--ffi native/build/ffi.json` — the manifest that binds the `declare`d
   `c8rl_*` functions to C symbols and names the archives and system libraries
   to link.
-- `-o dist/chip8.exe` — output path. The generated IR is kept beside it as
-  `dist/main.ll`; `zig cc` also leaves a `chip8.pdb`.
-- `SCRIPTC_CC=zigcc` — scriptc's C driver. The default is `clang` from
-  `PATH`; `zigcc` makes it spawn `zig cc` for the runtime sources, the program
-  IR and the final link. `SCRIPTC_TARGET` could additionally select a cross
-  target, which this project does not use.
+- `-o dist/chip8.exe` — output path. The generated LLVM IR is kept beside it
+  as `dist/main.ll`.
 
-scriptc caches compiled runtime objects and whole-program results per
-compiler and target, so a rebuild with unchanged sources takes seconds and a
-change to one module takes roughly half a minute.
+No environment variables are needed. scriptc links with zig on Windows and
+with clang on glibc Linux; `SCRIPTC_LINKER` would replace that driver and
+`SCRIPTC_TARGET` would select a cross target, and this project uses neither.
+(`SCRIPTC_CC`, which the 0.0.35 build set to `zigcc`, now only selects the C
+compiler for `--sanitize` builds.)
 
-The package declares `engines: node >= 24` and is pinned as a devDependency.
-On Windows the build executes it with bun, and every check in this repository
-runs against binaries produced that way. On Linux and macOS it needs node:
-scriptc's frontend is TypeScript 7's native compiler (`tsgo`), spawned as a
-child and driven over a synchronous pipe whose file descriptor it reads from
-Node's internal `stdout._handle`; bun's `child_process` exposes that on
-Windows but not elsewhere, and the compiler crashes at start-up. The build
-script therefore picks node when the platform is not Windows and node is on
-`PATH`. `SCRIPTC="<command line>"` overrides the choice.
+scriptc caches compiled programs, so a rebuild with unchanged sources takes
+about a second, and recompiling after a change takes a few seconds.
+
+The package installs the compiler as a native executable,
+`node_modules/scriptc/bin/scriptc.exe` (the same file name on every platform),
+from a postinstall script. bun runs install scripts only for packages listed
+in `trustedDependencies`, which is why `package.json` lists scriptc there;
+without it the file stays a small placeholder and the build stops with a
+message saying so. The script is written for node, and bun runs it itself when
+node is not installed. `SCRIPTC="<command line>"` replaces the compiler
+command.
 
 ## The FFI to raylib
 
@@ -106,6 +110,10 @@ file works as well as an archive); `system_libraries` become `-l` flags.
 | `bytes` | Uint8Array | `const uint8_t *, size_t` |
 | `void` | void | return only |
 
+These are the classes of `ffi_format` 1, which this project uses. Formats 2
+to 7 add callbacks, `f32`, 8- and 16-bit integers, writable byte spans,
+64-bit integers and opaque pointers.
+
 So the declaration above corresponds to this C function in `native/c8rl.c`:
 
 ```c
@@ -120,7 +128,7 @@ void c8rl_draw_display(const uint8_t *pixels, size_t length,
 - Pointers for `string` and `bytes` are borrowed for the duration of the call.
   `c8rl_init` copies the title into a NUL-terminated buffer before handing it
   to raylib; `c8rl_draw_display` reads the framebuffer and returns.
-- No structs by value, no pointer returns, no callbacks needed here. raylib's
+- No structs by value, and no pointers or callbacks needed here. raylib's
   `Color`, `Vector2` and `AudioStream` never cross the boundary: colours are
   `0xRRGGBBAA` integers converted with `GetColor()`, the audio stream is a
   `static` in the shim.
@@ -129,21 +137,23 @@ void c8rl_draw_display(const uint8_t *pixels, size_t length,
 
 ## Language rules that shaped the code
 
-The static tier is strict about what it lowers. These are the rules this
-program ran into and how `src/` handles them:
+scriptc 0.0.35's static tier was strict about what it lowered. These are the
+rules this program ran into, how `src/` handles them, and how scriptc 0.4.17
+behaves. The code keeps the 0.0.35 forms; they are ordinary TypeScript and
+still compile.
 
-| Rule | Where it shows |
-| ---- | -------------- |
-| `Uint16Array` has no lowering | the call stack is a `number[]` created by `zeros()` |
-| `TypedArray.fill` has no lowering | `clearBytes()` loops |
-| compound element assignment (`a[i] ^= v`) is unsupported | `drawSprite` uses an explicit read-modify-write |
-| `number.toString(radix)` is dynamic-tier only | `hex()` builds the string from a digit table |
-| arrays are dense; out-of-bounds reads trap and are not catchable | `process.argv` is copied with an explicit length loop; every memory index is masked with `& 0xfff` |
-| `==` only between operands of the same type | `===` everywhere |
-| record types are exact structs | `Options` has every field, no optional properties; `Quirks` presets are built field by field |
-| `any` is an error without `--dynamic` | none in the code |
-| user `throw` is catchable, runtime traps are not | `loadRom` throws for oversized images (caught in `main`); bad opcodes set `halted` instead of throwing |
-| `scriptc run` does not forward arguments | the build produces a binary and runs that |
+| Rule in 0.0.35 | Where it shows | 0.4.17 |
+| -------------- | -------------- | ------ |
+| `Uint16Array` has no lowering | the call stack is a `number[]` created by `zeros()` | compiles |
+| `TypedArray.fill` has no lowering | `clearBytes()` loops | compiles |
+| compound element assignment (`a[i] ^= v`) is unsupported | `drawSprite` uses an explicit read-modify-write | compiles |
+| `number.toString(radix)` is dynamic-tier only | `hex()` builds the string from a digit table | compiles |
+| arrays are dense; out-of-bounds reads trap and are not catchable | `process.argv` is copied with an explicit length loop; every memory index is masked with `& 0xfff` | an out-of-range read returns `undefined`, as in JavaScript |
+| `==` only between operands of the same type | `===` everywhere | compiles |
+| record types are exact structs | `Options` has every field, no optional properties; `Quirks` presets are built field by field | optional properties compile |
+| `any` is an error without `--dynamic` | none in the code | compiles, even with `--tier static-only` |
+| user `throw` is catchable, runtime traps are not | `loadRom` throws for oversized images (caught in `main`); bad opcodes set `halted` instead of throwing | still holds |
+| `scriptc run` does not forward arguments | the build produces a binary and runs that | still holds |
 
 `process.argv` has the same shape as under Node (`argv[0]` is `"scriptc"`,
 `argv[1]` the binary path), so `main()` slices from index 2 in both worlds.

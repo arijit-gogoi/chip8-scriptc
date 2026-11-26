@@ -1,26 +1,26 @@
 # Toolchain: bun, zig, raylib
 
-Two tools have to be installed: bun and zig. Everything else is either in
-`package.json` (scriptc, TypeScript types) or fetched by the build (raylib).
+Two tools have to be installed: bun and zig, plus clang on Linux, where
+scriptc links with it. Everything else is either in `package.json` (scriptc,
+TypeScript types) or fetched by the build (raylib).
 
 ## bun
 
-bun is the only JavaScript runtime involved, in six roles:
+bun is the only JavaScript runtime involved, in five roles:
 
 | Role | Command |
 | ---- | ------- |
-| package manager | `bun install` pins `scriptc`, `@types/bun`, `typescript` in `bun.lock` |
+| package manager | `bun install` pins `scriptc`, `@types/bun`, `typescript` in `bun.lock`, and runs scriptc's postinstall, which installs the native compiler |
 | script runner | `bun scripts/build.ts`, `bun scripts/verify.ts` — TypeScript executed directly, using `Bun.spawn` for parallel compiles |
 | test runner | `bun test` runs `tests/*.test.ts` with `bun:test` |
 | development runtime | `bun src/main.ts rom.ch8 --headless 120` runs the emulator core without compiling; the `declare`d raylib functions are simply never called on that path |
-| host for the compiler (Windows) | `bun node_modules/scriptc/dist/bootstrap.js build ...` runs scriptc itself; on Linux and macOS the build uses node instead (see [scriptc.md](scriptc.md)) |
 | bundler | `bun scripts/build-web.ts` calls `Bun.build` to turn `src/web.ts` into `dist/web/web.js` for browsers, and `Bun.serve` to host the result with `--serve` |
 
-The compiler role is the unusual one: scriptc declares `engines: node >= 24`,
-but on Windows it runs under bun and every result in this repository was
-produced that way. Elsewhere bun cannot host it, so Linux and macOS builds
-also need node. The version is pinned so that an upgrade is a deliberate,
-re-verified step.
+scriptc itself is a native executable and needs no JavaScript runtime. bun
+runs its postinstall script because `package.json` lists scriptc in
+`trustedDependencies`; the script is written for node, and bun runs it itself
+when node is not installed. The version is pinned so that an upgrade is a
+deliberate, re-verified step.
 
 ## zig
 
@@ -30,15 +30,16 @@ code exists in the project.
 
 Why zig rather than a system clang or gcc:
 
-- **One C runtime for everything.** raylib, the shim and scriptc's runtime
-  are all compiled by the same driver against the same mingw-w64 CRT on
-  Windows. Mixing a prebuilt raylib with a different CRT flavour produces
-  unresolved symbols (`stat64i32`, `clock_gettime`, `nanosleep` are the ones
-  that appear with msvcrt/UCRT mismatches); one toolchain avoids the class of
-  problem instead of patching symbols.
-- **scriptc supports it directly.** `SCRIPTC_CC=zigcc` is one of the two
-  documented driver settings (`clang` is the other), so no `PATH` juggling is
-  needed to steer the compiler to a specific clang.
+- **One C runtime on Windows.** raylib and the shim are compiled by `zig cc`,
+  and scriptc links the executable with zig, so everything, including
+  scriptc's precompiled runtime, meets in zig's mingw-w64 C runtime. Mixing a
+  prebuilt raylib with a different CRT flavour produces unresolved symbols
+  (`stat64i32`, `clock_gettime`, `nanosleep` are the ones that appear with
+  msvcrt/UCRT mismatches); one toolchain avoids the class of problem instead
+  of patching symbols.
+- **scriptc uses it anyway.** zig is scriptc's default linker on Windows, so
+  the build needs no setting to steer it. On glibc Linux scriptc links with
+  clang instead, and zig only compiles raylib and the shim.
 - **No system-specific install.** `scoop install zig`, `brew install zig`, or
   a tarball; the CRT and compiler-rt pieces are built on first use into zig's
   global cache (`%LOCALAPPDATA%\zig` on Windows), after which compiles are
@@ -100,7 +101,7 @@ System libraries per platform, written into the manifest:
 | -------- | ------------------ |
 | Windows | `opengl32 gdi32 winmm` |
 | Linux | `m pthread dl rt GL X11` (X11 development headers required to compile `rglfw.c`) |
-| macOS | refused: raylib needs `-framework` flags, which scriptc's manifest cannot express |
+| macOS | refused: untested; raylib's frameworks would need an `ffi_format` 7 manifest |
 
 ## scripts/build.ts, step by step
 
@@ -117,8 +118,10 @@ bun scripts/build.ts [--clean] [--run <rom> [emulator args...]]
 5. **manifest**: read `native/ffi.base.json`, add `libraries`
    (`./c8rl.o`, `./libraylib.a`) and the platform's `system_libraries`,
    write `native/build/ffi.json`.
-6. **scriptc**: `bun node_modules/scriptc/dist/bootstrap.js build src/main.ts --ffi native/build/ffi.json -o dist/chip8[.exe]`
-   with `SCRIPTC_CC=zigcc`. `SCRIPTC=<command>` replaces the first part.
+6. **scriptc**: `node_modules/scriptc/bin/scriptc.exe build src/main.ts --tier static-only --ffi native/build/ffi.json -o dist/chip8[.exe]`.
+   The script first checks that the compiler is installed and is not the
+   placeholder left when the postinstall did not run. `SCRIPTC=<command>`
+   replaces the first part.
 7. `--run <rom> ...` executes the fresh binary with the remaining arguments.
 
 Artifacts:
@@ -129,7 +132,6 @@ Artifacts:
 | `native/build/c8rl.o` | the shim |
 | `native/build/ffi.json` | generated manifest |
 | `dist/chip8.exe` | the emulator |
-| `dist/chip8.pdb` | debug info emitted by zig's linker; deletable |
 | `dist/main.ll` | LLVM IR scriptc generated for the program |
 
 ## scripts/verify.ts
