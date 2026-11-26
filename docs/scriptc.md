@@ -55,8 +55,7 @@ from a postinstall script. bun runs install scripts only for packages listed
 in `trustedDependencies`, which is why `package.json` lists scriptc there;
 without it the file stays a small placeholder and the build stops with a
 message saying so. The script is written for node, and bun runs it itself when
-node is not installed. `SCRIPTC="<command line>"` replaces the compiler
-command.
+node is not installed.
 
 ## The FFI to raylib
 
@@ -135,28 +134,26 @@ void c8rl_draw_display(const uint8_t *pixels, size_t length,
 - Calls are synchronous; C must not unwind exceptions or `longjmp` across the
   boundary. raylib does neither.
 
-## Language rules that shaped the code
+## Language rules that shape the code
 
-scriptc 0.0.35's static tier was strict about what it lowered. These are the
-rules this program ran into, how `src/` handles them, and how scriptc 0.4.17
-behaves. The code keeps the 0.0.35 forms; they are ordinary TypeScript and
-still compile.
+scriptc 0.4.17 compiles everything this program uses. Two rules still shape
+it:
 
-| Rule in 0.0.35 | Where it shows | 0.4.17 |
-| -------------- | -------------- | ------ |
-| `Uint16Array` has no lowering | the call stack is a `number[]` created by `zeros()` | compiles |
-| `TypedArray.fill` has no lowering | `clearBytes()` loops | compiles |
-| compound element assignment (`a[i] ^= v`) is unsupported | `drawSprite` uses an explicit read-modify-write | compiles |
-| `number.toString(radix)` is dynamic-tier only | `hex()` builds the string from a digit table | compiles |
-| arrays are dense; out-of-bounds reads trap and are not catchable | `process.argv` is copied with an explicit length loop; every memory index is masked with `& 0xfff` | the reads tested returned `undefined`, as in JavaScript, but scriptc's docs still list out-of-range reads of statically typed arrays as uncatchable traps |
-| `==` only between operands of the same type | `===` everywhere | compiles |
-| record types are exact structs | `Options` has every field, no optional properties; `Quirks` presets are built field by field | optional properties compile |
-| `any` is an error without `--dynamic` | none in the code | compiles, even with `--tier static-only` |
-| user `throw` is catchable, runtime traps are not | `loadRom` throws for oversized images (caught in `main`); bad opcodes set `halted` instead of throwing | still holds |
-| `scriptc run` does not forward arguments | the build produces a binary and runs that | still holds |
+| Rule | Where it shows |
+| ---- | -------------- |
+| a user `throw` is catchable; runtime traps, such as out-of-range reads of statically typed arrays, are not | `loadRom` throws for oversized images (caught in `main`); every memory index is masked with `& 0xfff`; bad opcodes and stack errors set `halted` instead of throwing |
+| `scriptc run` does not forward arguments | the build produces a binary and runs that |
 
 `process.argv` has the same shape as under Node (`argv[0]` is `"scriptc"`,
 `argv[1]` the binary path), so `main()` slices from index 2 in both worlds.
+
+The code was first written for scriptc 0.0.35, whose static tier had no
+lowering for `Uint16Array`, `TypedArray.fill`, compound element assignment
+(`a[i] ^= v`) or `number.toString(radix)`, and trapped on out-of-range array
+reads. The workarounds (a `number[]` call stack, zeroing loops, an explicit
+branch in `drawSprite`, a digit-table `hex()`, a hand-copied `process.argv`)
+were removed after the update to 0.4.17. The
+[blog post](blog/chip8-scriptc.md) describes them.
 
 ## One source, two runtimes
 

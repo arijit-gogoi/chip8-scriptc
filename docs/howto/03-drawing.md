@@ -12,14 +12,13 @@ code as it appears in `execute()`.
 
 *Clear the screen.*
 
-Every pixel off. `clearBytes` is a loop that zeroes a `Uint8Array`. The
-`drawn` flag is for chapter 7: it tells the frame loop that the picture
-changed.
+Every pixel off: `fill(0)` zeroes the whole `Uint8Array`. The `drawn` flag
+is for chapter 7: it tells the frame loop that the picture changed.
 
 ```ts
 case 0x0:
   if (opcode === 0x00e0) {
-    clearBytes(this.display);
+    this.display.fill(0);
     this.drawn = true;
   } else if (opcode === 0x00ee) {
     // return — chapter 4
@@ -136,12 +135,8 @@ private drawSprite(vx: number, vy: number, height: number): void {
         px -= DISPLAY_WIDTH;
       }
       const index = py * DISPLAY_WIDTH + px;
-      if (this.display[index] !== 0) {
-        collision = 1;
-        this.display[index] = 0;
-      } else {
-        this.display[index] = 1;
-      }
+      if (this.display[index] !== 0) collision = 1;
+      this.display[index] ^= 1;
     }
   }
   this.v[0xf] = collision;
@@ -152,7 +147,8 @@ private drawSprite(vx: number, vy: number, height: number): void {
 Reading the inner loop: `0x80 >> bit` is a mask with a single 1 that walks
 from the leftmost bit (`1000 0000`) to the rightmost. If the sprite bit is 0
 nothing happens — XOR with 0 changes nothing, so we skip. If it is 1 the
-screen pixel flips, and we note a collision when it flips from on to off.
+screen pixel flips (`^= 1`), and we note a collision when it was on before
+the flip.
 
 Until chapter 5 introduces `quirks`, you can replace `this.quirks.wrapSprites`
 with `false`.

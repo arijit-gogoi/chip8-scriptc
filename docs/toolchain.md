@@ -120,8 +120,7 @@ bun scripts/build.ts [--clean] [--run <rom> [emulator args...]]
    write `native/build/ffi.json`.
 6. **scriptc**: `node_modules/scriptc/bin/scriptc.exe build src/main.ts --tier static-only --ffi native/build/ffi.json -o dist/chip8[.exe]`.
    The script first checks that the compiler is installed and is not the
-   placeholder left when the postinstall did not run. `SCRIPTC=<command>`
-   replaces the first part.
+   placeholder left when the postinstall did not run.
 7. `--run <rom> ...` executes the fresh binary with the remaining arguments.
 
 Artifacts:

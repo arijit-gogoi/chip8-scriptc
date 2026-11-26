@@ -108,14 +108,11 @@ stop the interpreter when it happens rather than corrupt memory.
 ```ts
 export const STACK_DEPTH = 16;
 
-readonly stack: number[] = zeros(STACK_DEPTH);
+readonly stack = new Uint16Array(STACK_DEPTH);
 sp = 0;
 ```
 
-(`zeros(n)` just builds an array of `n` zeros. A `Uint16Array` would be the
-natural choice; this project uses a plain array because scriptc 0.0.35, the
-compiler version it was first built with, did not support `Uint16Array`.
-Current scriptc and bun both handle a `Uint16Array` fine.)
+(Addresses are 12 bits, so 16-bit slots hold them.)
 
 ## The timers
 
@@ -223,7 +220,7 @@ Exercise: draw `1` from its bytes `20 60 20 20 70` the way `0` is drawn above.
 export class Chip8 {
   readonly memory = new Uint8Array(MEMORY_SIZE);
   readonly v = new Uint8Array(REGISTER_COUNT);
-  readonly stack: number[] = zeros(STACK_DEPTH);
+  readonly stack = new Uint16Array(STACK_DEPTH);
   readonly display = new Uint8Array(DISPLAY_WIDTH * DISPLAY_HEIGHT);
   readonly keys = new Uint8Array(KEY_COUNT);
   i = 0;
@@ -240,11 +237,11 @@ export class Chip8 {
 
   /** Clear all state and reload the font. The ROM must be loaded again afterwards. */
   reset(): void {
-    clearBytes(this.memory);
-    clearBytes(this.v);
-    for (let k = 0; k < STACK_DEPTH; k++) this.stack[k] = 0;
-    clearBytes(this.display);
-    clearBytes(this.keys);
+    this.memory.fill(0);
+    this.v.fill(0);
+    this.stack.fill(0);
+    this.display.fill(0);
+    this.keys.fill(0);
     this.i = 0;
     this.pc = PROGRAM_START;
     this.sp = 0;

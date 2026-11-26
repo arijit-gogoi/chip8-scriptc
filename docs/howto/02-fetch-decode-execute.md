@@ -120,8 +120,8 @@ Three details worth noticing:
   message that names the opcode and its address. When a test ROM stops, that
   message tells you what you have not implemented yet.
 
-`hex(value, width)` is a small helper that formats a number as `0x...` with
-leading zeros; you can use `value.toString(16)` instead.
+`hex(value, width)` is a small helper that formats a number as `0x...` in
+upper case with leading zeros, using `toString(16)` and `padStart`.
 
 ## Try it
 

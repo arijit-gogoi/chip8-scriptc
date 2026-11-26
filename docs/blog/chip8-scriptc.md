@@ -20,9 +20,9 @@ bun.
 
 > **Version note.** Everything here was built in August 2026 against scriptc
 > 0.0.35. scriptc has moved quickly since; the repository now pins 0.4.17,
-> and its build script and documentation describe that version rather than
-> the build below. Where scriptc's changelog says a limitation described here
-> has changed, I point to the entry.
+> and its code, build script and documentation describe that version rather
+> than the build below. Where scriptc's changelog says a limitation described
+> here has changed, I point to the entry.
 
 ## Why CHIP-8
 

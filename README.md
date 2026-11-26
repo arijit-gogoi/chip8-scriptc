@@ -49,8 +49,7 @@ compiler for the platform from a postinstall script, which bun runs because
 needs no JavaScript runtime. scriptc links the program with its own
 precompiled runtime, the raylib archive and the shim object. On Windows the
 linker is zig, so raylib, the shim and the runtime meet in zig's mingw-w64 C
-runtime. `SCRIPTC="<command line>"` replaces the installed compiler, for
-example with a global install.
+runtime.
 
 Platforms: Windows x64 is tested. Linux needs the X11 development headers
 (raylib's GLFW backend; the manifest links `GL X11 m pthread dl rt`). macOS is
@@ -218,20 +217,14 @@ Toolchain:
 
 The build passes `--tier static-only`, so any construct that scriptc cannot
 compile to native code is a build error, and `scriptc coverage src/main.ts
---ffi native/build/ffi.json` reports the whole program as static. The code
-was first written against scriptc 0.0.35, whose static tier forced a few
-rewrites:
+--ffi native/build/ffi.json` reports the whole program as static.
 
-- no `Uint16Array`: the call stack is a plain `number[]`;
-- no `TypedArray.fill`: explicit loops;
-- no compound element assignment (`a[i] ^= v`): read-modify-write;
-- no `number.toString(radix)`: hand-rolled hex formatter;
-- arrays are dense and out-of-bounds indexing traps: `process.argv` is copied
-  with explicit length checks.
+One scriptc rule still shapes the code: runtime traps cannot be caught, and
+scriptc's documentation lists out-of-range reads of statically typed arrays
+among them. So memory addresses wrap with `& 0xfff`, and a bad opcode or a
+stack overflow halts the interpreter instead of throwing.
 
-In scriptc 0.4.17 the first four constructs compile. The out-of-range reads
-tested returned `undefined`, as in JavaScript, but scriptc's documentation
-still lists out-of-range reads of statically typed arrays among the traps
-that end the process, and runtime traps still cannot be caught. The code
-keeps the original forms, which are still ordinary TypeScript: memory indexes
-stay masked, and a bad opcode halts the interpreter instead of throwing.
+The code was first written for scriptc 0.0.35, whose static tier had no
+`Uint16Array`, `TypedArray.fill`, compound element assignment (`a[i] ^= v`)
+or `number.toString(radix)`. 0.4.17 compiles all of them, and the workarounds
+are gone.
