@@ -32,11 +32,9 @@ Why zig rather than a system clang or gcc:
 
 - **One C runtime on Windows.** raylib and the shim are compiled by `zig cc`,
   and scriptc links the executable with zig, so everything, including
-  scriptc's precompiled runtime, meets in zig's mingw-w64 C runtime. Mixing a
-  prebuilt raylib with a different CRT flavour produces unresolved symbols
-  (`stat64i32`, `clock_gettime`, `nanosleep` are the ones that appear with
-  msvcrt/UCRT mismatches); one toolchain avoids the class of problem instead
-  of patching symbols.
+  scriptc's precompiled runtime, meets in zig's mingw-w64 C runtime. Objects
+  built against different C runtimes (msvcrt and UCRT) leave symbols
+  unresolved when mixed; one toolchain avoids that.
 - **scriptc uses it anyway.** zig is scriptc's default linker on Windows, so
   the build needs no setting to steer it. On glibc Linux scriptc links with
   clang instead, and zig only compiles raylib and the shim.

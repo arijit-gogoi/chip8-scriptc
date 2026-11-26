@@ -12,14 +12,10 @@ native implementations in the runtime, and the program's own functions are
 machine code.
 
 Code that scriptc cannot compile to native code is a compile error with an
-`SCnnnn` code and a rewrite hint. The build passes `--tier static-only`, which
-keeps it that way even if a later release starts moving such code to a dynamic
-tier. `scriptc coverage src/main.ts --ffi native/build/ffi.json` reports how
-much of the program compiles natively; here it is the whole program.
-
-The project pins scriptc 0.4.17. It was first built with 0.0.35, which had a
-narrower static tier and an optional embedded JavaScript engine (`--dynamic`,
-removed in 0.3.0).
+`SCnnnn` code and a rewrite hint; the build passes `--tier static-only` to
+keep it that way. `scriptc coverage src/main.ts --ffi native/build/ffi.json`
+reports how much of the program compiles natively; here it is the whole
+program. The project pins scriptc 0.4.17.
 
 ## How the build invokes it
 
@@ -43,8 +39,6 @@ node_modules/scriptc/bin/scriptc.exe build src/main.ts --tier static-only --ffi 
 No environment variables are needed. scriptc links with zig on Windows and
 with clang on glibc Linux; `SCRIPTC_LINKER` would replace that driver and
 `SCRIPTC_TARGET` would select a cross target, and this project uses neither.
-(`SCRIPTC_CC`, which the 0.0.35 build set to `zigcc`, now only selects the C
-compiler for `--sanitize` builds.)
 
 scriptc caches compiled programs, so a rebuild with unchanged sources takes
 about a second, and recompiling after a change takes a few seconds.
@@ -136,8 +130,7 @@ void c8rl_draw_display(const uint8_t *pixels, size_t length,
 
 ## Language rules that shape the code
 
-scriptc 0.4.17 compiles everything this program uses. Two rules still shape
-it:
+scriptc compiles everything this program uses. Two rules shape it:
 
 | Rule | Where it shows |
 | ---- | -------------- |
@@ -146,14 +139,6 @@ it:
 
 `process.argv` has the same shape as under Node (`argv[0]` is `"scriptc"`,
 `argv[1]` the binary path), so `main()` slices from index 2 in both worlds.
-
-The code was first written for scriptc 0.0.35, whose static tier had no
-lowering for `Uint16Array`, `TypedArray.fill`, compound element assignment
-(`a[i] ^= v`) or `number.toString(radix)`, and trapped on out-of-range array
-reads. The workarounds (a `number[]` call stack, zeroing loops, an explicit
-branch in `drawSprite`, a digit-table `hex()`, a hand-copied `process.argv`)
-were removed after the update to 0.4.17. The
-[blog post](blog/chip8-scriptc.md) describes them.
 
 ## One source, two runtimes
 

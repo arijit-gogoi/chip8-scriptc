@@ -11,9 +11,9 @@ Documentation: [docs/](docs/README.md) explains how the repository fits
 together (architecture, scriptc, the bun/zig/raylib toolchain);
 [docs/howto/](docs/howto/README.md) is a tutorial on writing a CHIP-8
 emulator in TypeScript, following the code in `src/`. The blog post
-[docs/blog/chip8-scriptc.md](docs/blog/chip8-scriptc.md) tells the story of
-the project: what scriptc asked of the code, the toolchain, and how the
-native binary compares with bun.
+[docs/blog/chip8-scriptc.md](docs/blog/chip8-scriptc.md) describes the
+project for readers who have not seen the code: how scriptc compiles it, the
+raylib FFI, the toolchain, and how the native binary is checked against bun.
 
 ```
 src/chip8.ts            CPU, memory, timers, display buffer, keypad, quirk switches
@@ -223,8 +223,3 @@ One scriptc rule still shapes the code: runtime traps cannot be caught, and
 scriptc's documentation lists out-of-range reads of statically typed arrays
 among them. So memory addresses wrap with `& 0xfff`, and a bad opcode or a
 stack overflow halts the interpreter instead of throwing.
-
-The code was first written for scriptc 0.0.35, whose static tier had no
-`Uint16Array`, `TypedArray.fill`, compound element assignment (`a[i] ^= v`)
-or `number.toString(radix)`. 0.4.17 compiles all of them, and the workarounds
-are gone.

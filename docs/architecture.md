@@ -31,7 +31,7 @@ no JavaScript engine inside.
 | `tests/cli.test.ts` | argument parsing tests |
 | `tests/roms.test.ts`, `tests/snapshots/` | Timendus test ROMs run through the core, framebuffers compared with stored snapshots |
 | `roms/tests`, `roms/games` | test ROMs and CC0 games |
-| `dist/` | the executable (`chip8.exe`), its debug info, and the LLVM IR scriptc generated |
+| `dist/` | the executable (`chip8.exe`) and the LLVM IR scriptc generated |
 
 ## Layers
 
