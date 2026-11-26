@@ -219,7 +219,7 @@ The build passes `--tier static-only`, so any construct that scriptc cannot
 compile to native code is a build error, and `scriptc coverage src/main.ts
 --ffi native/build/ffi.json` reports the whole program as static.
 
-One scriptc rule still shapes the code: runtime traps cannot be caught, and
+One scriptc rule shapes the code: runtime traps cannot be caught, and
 scriptc's documentation lists out-of-range reads of statically typed arrays
 among them. So memory addresses wrap with `& 0xfff`, and a bad opcode or a
 stack overflow halts the interpreter instead of throwing.
