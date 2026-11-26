@@ -19,9 +19,9 @@ code, where the build fought back, and how the native binary compares with
 bun.
 
 > **Version note.** Everything here was built in August 2026 against scriptc
-> 0.0.35, which the repository pins. scriptc has moved quickly since: the
-> latest release is 0.4.16. Where its changelog says a limitation described
-> below has changed, I point to the entry. I have not re-tested with the newer
+> 0.0.35, which the repository pins. scriptc has moved quickly since and is
+> now in its 0.4 series. Where its changelog says a limitation described below
+> has changed, I point to the entry. I have not re-tested with the newer
 > versions.
 
 ## Why CHIP-8
@@ -251,8 +251,9 @@ linker flags. So the first build used winlibs' mingw-w64 clang, which links
 against the Universal C Runtime (UCRT), together with scoop's prebuilt raylib,
 which is built against the older msvcrt. Mixing the two C runtimes left
 symbols unresolved, and the program linked only after two patches: an alias in
-the shim that forwarded msvcrt's `stat64i32` to UCRT's `_stat64i32`, and
-`winpthread` added to the link line for `clock_gettime` and `nanosleep`.
+the shim for the `stat64i32` helper that the msvcrt-built raylib referenced,
+forwarding to UCRT's `_stat64i32`, and `winpthread` added to the link line for
+`clock_gettime` and `nanosleep`.
 
 Instead of carrying those patches, I moved every C compile to `zig cc`. zig is
 used here purely as a C toolchain: a clang driver that ships libc and C
@@ -394,12 +395,11 @@ FFI, so the build stops at the first raylib call:
 src/main.ts:50:3 - error SC1090: the reference to 'c8rl_init' (a binding form with no lowering) is not supported yet
 ```
 
-Even without raylib, a 0.0.35 wasm module could only run as a WASI command;
-callable exports and host imports for WebAssembly arrived in 0.2.0, whose
-changelog says browser hosts supply "their own WASI adapter and rendering
-integration". Bundling the same TypeScript as JavaScript was the simpler
-answer. A scriptc-compiled browser build may be possible now; I have not
-tried it.
+With 0.0.35, bundling the same TypeScript as JavaScript was the simpler
+answer. The 0.2.0 changelog lists callable exports and host imports for
+WebAssembly libraries as new, and says browser hosts supply "their own WASI
+adapter and rendering integration", so a scriptc-compiled browser build may be
+possible now. I have not tried it.
 
 ## Numbers
 
