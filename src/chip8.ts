@@ -56,8 +56,8 @@ export class Chip8 {
   readonly memory = new Uint8Array(MEMORY_SIZE);
   /** General purpose registers V0..VF. */
   readonly v = new Uint8Array(REGISTER_COUNT);
-  /** Return addresses (a plain array: scriptc 0.0.35 had no Uint16Array). */
-  readonly stack: number[] = zeros(STACK_DEPTH);
+  /** Return addresses. */
+  readonly stack = new Uint16Array(STACK_DEPTH);
   /** One byte per pixel, row-major, 1 = lit. */
   readonly display = new Uint8Array(DISPLAY_WIDTH * DISPLAY_HEIGHT);
   /** Keypad state, 1 = pressed. */
@@ -87,11 +87,11 @@ export class Chip8 {
 
   /** Clear all state and reload the font. The ROM must be loaded again afterwards. */
   reset(): void {
-    clearBytes(this.memory);
-    clearBytes(this.v);
-    for (let k = 0; k < STACK_DEPTH; k++) this.stack[k] = 0;
-    clearBytes(this.display);
-    clearBytes(this.keys);
+    this.memory.fill(0);
+    this.v.fill(0);
+    this.stack.fill(0);
+    this.display.fill(0);
+    this.keys.fill(0);
     this.i = 0;
     this.pc = PROGRAM_START;
     this.sp = 0;
@@ -209,7 +209,7 @@ export class Chip8 {
     switch (opcode >> 12) {
       case 0x0:
         if (opcode === 0x00e0) {
-          clearBytes(this.display);
+          this.display.fill(0);
           this.drawn = true;
         } else if (opcode === 0x00ee) {
           if (this.sp === 0) {
@@ -404,12 +404,8 @@ export class Chip8 {
           px -= DISPLAY_WIDTH;
         }
         const index = py * DISPLAY_WIDTH + px;
-        if (this.display[index] !== 0) {
-          collision = 1;
-          this.display[index] = 0;
-        } else {
-          this.display[index] = 1;
-        }
+        if (this.display[index] !== 0) collision = 1;
+        this.display[index] ^= 1;
       }
     }
     this.v[0xf] = collision;
@@ -431,27 +427,7 @@ export function renderAscii(display: Uint8Array): string {
   return out;
 }
 
-/** Zero every element (scriptc 0.0.35 had no TypedArray.fill). */
-function clearBytes(bytes: Uint8Array): void {
-  for (let k = 0; k < bytes.length; k++) bytes[k] = 0;
-}
-
-/** A dense array of `count` zeros. */
-function zeros(count: number): number[] {
-  const out: number[] = [];
-  for (let k = 0; k < count; k++) out.push(0);
-  return out;
-}
-
-const HEX_DIGITS = "0123456789ABCDEF";
-
 /** Upper-case hexadecimal with a fixed minimum width, prefixed with 0x. */
 export function hex(value: number, width: number): string {
-  let rest = Math.floor(value) >>> 0;
-  let s = "";
-  while (rest > 0 || s.length < width) {
-    s = HEX_DIGITS.charAt(rest & 0xf) + s;
-    rest = rest >>> 4;
-  }
-  return "0x" + s;
+  return "0x" + (Math.floor(value) >>> 0).toString(16).toUpperCase().padStart(width, "0");
 }

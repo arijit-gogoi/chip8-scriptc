@@ -12,10 +12,6 @@
  *      (scriptc is the native compiler installed in node_modules/scriptc/bin)
  *
  * Usage: bun scripts/build.ts [--clean] [--run <rom> [emulator args...]]
- *
- * Environment:
- *   SCRIPTC   command line used to start scriptc instead of the installed
- *             compiler, for example SCRIPTC=scriptc for a global install
  */
 import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -43,13 +39,9 @@ function fail(message: string): never {
   process.exit(1);
 }
 
-function run(label: string, command: string, args: string[], env?: Record<string, string>): void {
+function run(label: string, command: string, args: string[]): void {
   console.log(`[${label}] ${command} ${args.join(" ")}`);
-  const result = spawnSync(command, args, {
-    stdio: "inherit",
-    cwd: root,
-    env: env === undefined ? process.env : { ...process.env, ...env },
-  });
+  const result = spawnSync(command, args, { stdio: "inherit", cwd: root });
   if (result.error) fail(`${label}: ${result.error.message}`);
   if (result.status !== 0) fail(`${label} failed with exit code ${result.status}`);
 }
@@ -143,27 +135,23 @@ function writeManifest(): string {
 }
 
 /**
- * How to start the scriptc compiler. The scriptc package installs a native
- * executable, named scriptc.exe on every platform, from its postinstall
- * script; until that script has run, the file is a small placeholder.
- * SCRIPTC="<command> [args]" overrides the choice.
+ * The scriptc compiler. The scriptc package installs a native executable,
+ * named scriptc.exe on every platform, from its postinstall script; until
+ * that script has run, the file is a small placeholder.
  */
-function scriptcCommand(): string[] {
-  const override = process.env.SCRIPTC;
-  if (override !== undefined && override.trim() !== "") return override.trim().split(/\s+/);
+function scriptcPath(): string {
   const compiler = join(root, "node_modules", "scriptc", "bin", "scriptc.exe");
   if (!existsSync(compiler)) fail("scriptc not installed: run bun install");
   if (statSync(compiler).size < 4096) {
     fail("scriptc's native compiler is not installed: its postinstall script did not run (run bun install; package.json lists scriptc in trustedDependencies)");
   }
-  return [compiler];
+  return compiler;
 }
 
 function buildExecutable(manifestPath: string): string {
   mkdirSync(distDir, { recursive: true });
   const output = join(distDir, exeName);
-  const command = scriptcCommand();
-  run("scriptc", command[0], [...command.slice(1), "build", join(root, "src", "main.ts"), "--tier", "static-only", "--ffi", manifestPath, "-o", output]);
+  run("scriptc", scriptcPath(), ["build", join(root, "src", "main.ts"), "--tier", "static-only", "--ffi", manifestPath, "-o", output]);
   return output;
 }
 

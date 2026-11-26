@@ -101,9 +101,7 @@ function runWindowed(vm: Chip8, rom: Uint8Array, opts: Options): void {
 }
 
 function main(): void {
-  const args: string[] = [];
-  for (let k = 2; k < process.argv.length; k++) args.push(process.argv[k]);
-  const parsed = parseOptions(args);
+  const parsed = parseOptions(process.argv.slice(2));
   if (parsed.options === null) {
     if (parsed.error !== "") console.log(parsed.error);
     console.log(USAGE);
