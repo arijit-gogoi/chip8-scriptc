@@ -211,7 +211,8 @@ line number, and writes no ROM.
 
 A table used in both directions invites one test: for every 16-bit word that
 decodes, format it, assemble the text, and compare. `tests/tools.test.ts`
-does exactly that for all 65,536 words, then does the same for every ROM in
+tries all 65,536 words and round-trips each one that decodes, then does the
+same for every ROM in
 `roms/`, disassembling and reassembling each and requiring the original
 bytes. `bun run verify` repeats the ROM round trip with the native
 executable and compares its listings with bun's.

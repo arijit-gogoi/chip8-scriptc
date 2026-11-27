@@ -150,7 +150,8 @@ SUPER-CHIP and SUPER-CHIP 1.1, and every arrow of the scrolling test inside
 its box in both low-resolution modes and in high resolution.
 `UPDATE_SNAPSHOTS=1 bun test tests/roms.test.ts` rewrites them after an
 intentional change. `tests/tools.test.ts` assembles the listing of every
-opcode word and of every ROM in `roms/` and requires the original bytes back.
+16-bit word that decodes and of every ROM in `roms/` and requires the
+original bytes back.
 `scripts/verify.ts` covers what unit tests cannot: that the scriptc-compiled
 binaries behave exactly like the same TypeScript under bun, including error
 paths.
@@ -306,8 +307,9 @@ CHIP-8 specification and opcodes:
   (Timendus) — the test ROMs in `roms/tests`, the quirk definitions (VF reset,
   memory, display wait, clipping, shifting, jumping) behind `Quirks` in
   `src/chip8.ts`, and the notes on legacy SUPER-CHIP.
-- [Octo](https://github.com/JohnEarnest/Octo) (John Earnest) — the modern
-  SUPER-CHIP behaviour of the `schip` profile, and the byte values of the
+- [Octo](https://github.com/JohnEarnest/Octo) (John Earnest) — how the
+  `schip` profile runs the SUPER-CHIP instructions (whole-pixel scrolling,
+  16x16 sprites in both resolutions, VF 1 or 0), and the byte values of the
   large digits.
 - [chip8Archive](https://github.com/JohnEarnest/chip8Archive) (John Earnest)
   — the CC0 programs in `roms/games` and `roms/schip`.

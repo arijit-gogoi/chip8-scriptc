@@ -186,8 +186,8 @@ instructions, and draws every other byte as a sprite row. Its assembler is a
 classic two-pass design with labels, constants and simple expressions. Both
 read one instruction table, [`src/opcodes.ts`](../../src/opcodes.ts), with
 Cowgod's mnemonics, so a listing always assembles back into the bytes it came
-from. The tests check that for every 16-bit word and for every ROM in the
-repository.
+from. The tests check that for every 16-bit word that decodes and for every
+ROM in the repository.
 
 For scriptc it is a different kind of program from the emulator: string
 scanning, maps, records and error lists instead of a hot loop over bytes. It

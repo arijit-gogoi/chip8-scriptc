@@ -176,4 +176,4 @@ in [scriptc.md](scriptc.md) and [toolchain.md](toolchain.md).
   lists each instruction once, with its mnemonic, operand kinds, opcode and
   mask. The disassembler decodes with it and the assembler encodes with it,
   so a listing always assembles back to the bytes it came from; the tests
-  check this for every 16-bit word and every ROM.
+  check this for every 16-bit word that decodes and for every ROM.

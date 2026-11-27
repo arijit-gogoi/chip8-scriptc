@@ -71,7 +71,10 @@ export function chip8Quirks(): Quirks {
   };
 }
 
-/** Modern SUPER-CHIP, as Octo and most current interpreters implement it; many later ROMs assume it. */
+/**
+ * Modern SUPER-CHIP, as Timendus' test suite defines it: SUPER-CHIP's quirks,
+ * with the SUPER-CHIP instructions as current interpreters run them.
+ */
 export function schipQuirks(): Quirks {
   return {
     shiftVx: true,

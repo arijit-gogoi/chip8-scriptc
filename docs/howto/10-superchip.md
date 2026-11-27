@@ -322,7 +322,10 @@ rowCollisions: boolean;   // high resolution VF counts rows
 and two presets:
 
 ```ts
-/** Modern SUPER-CHIP, as Octo and most current interpreters implement it; many later ROMs assume it. */
+/**
+ * Modern SUPER-CHIP, as Timendus' test suite defines it: SUPER-CHIP's quirks,
+ * with the SUPER-CHIP instructions as current interpreters run them.
+ */
 export function schipQuirks(): Quirks {
   return {
     shiftVx: true,
@@ -359,11 +362,13 @@ export function schipLegacyQuirks(): Quirks {
 maps the names `chip8`, `schip` and `schip-legacy` to these functions for
 the command line (`--quirks`) and the browser's profile menu.
 
-Which one to use? Programs written in the last decade, for Octo or for
-modern interpreters, expect `schip`. Programs from the 1990s were written on
-calculators, but most of them run under `schip` too; `schip-legacy` is for
-the ones that do not, and for checking an interpreter against the real
-thing.
+Which one to use? Programs written for modern SUPER-CHIP interpreters expect
+`schip`. Programs from the 1990s were written on calculators, but most of
+them run under `schip` too; `schip-legacy` is for the ones that do not, and
+for checking an interpreter against the real thing. Many programs written
+with Octo are a third case: they use the SUPER-CHIP instructions but keep
+CHIP-8's `8XY6`/`8XYE` and `FX55`/`FX65`, a combination neither preset
+offers (`roms/README.md` says which of the included programs fit `schip`).
 
 ## The hosts
 
