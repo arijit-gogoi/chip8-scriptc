@@ -10,7 +10,7 @@ export const DEFAULT_PRESS_FRAMES = 30;
 export const USAGE = `usage: chip8 <rom.ch8> [options]
 
   --ipf <n>            instructions per 60 Hz frame (default ${DEFAULT_IPF})
-  --scale <n>          window pixels per 64x32 pixel (default ${DEFAULT_SCALE})
+  --scale <n>          window pixels per low-resolution pixel (default ${DEFAULT_SCALE})
   --quirks <profile>   chip8 (COSMAC VIP, default), schip (modern SUPER-CHIP)
                        or schip-legacy (SUPER-CHIP 1.1 on the HP-48)
   --wrap               wrap sprites around the screen edges instead of clipping
