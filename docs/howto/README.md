@@ -1,9 +1,12 @@
 # How to write a CHIP-8 emulator in TypeScript
 
 This series builds the interpreter in `src/chip8.ts` from nothing, one idea at
-a time. Every code block is taken from that file (sometimes shortened), so
-when you finish a chapter you can open the real file and recognise everything
-in it.
+a time. Every code block is taken from that file (sometimes shortened).
+Chapters 1 to 9 build a CHIP-8 interpreter and show each piece in its CHIP-8
+form; chapter 10 extends the same code to SUPER-CHIP, after which you can
+open the real file and recognise everything in it. Chapter 11 covers the
+assembler and disassembler in `src/opcodes.ts`, `src/asm.ts` and
+`src/disasm.ts`.
 
 You need: a computer with [bun](https://bun.sh) installed, a text editor, and
 TypeScript basics — variables, `if`, loops, functions, classes, arrays. You do
@@ -26,6 +29,8 @@ to free, and a `switch` statement is all the dispatch you need.
 | [7. The frame loop](07-frame-loop.md) | run it at the right speed and drive it from a program |
 | [8. Testing](08-testing.md) | unit tests, the Timendus test ROMs, snapshots, debugging |
 | [9. A window, a keyboard and a beep](09-window.md) | connect the core to raylib and build the native executable |
+| [10. SUPER-CHIP](10-superchip.md) | add high resolution, scrolling, 16x16 sprites, large digits and flag registers, and two SUPER-CHIP profiles |
+| [11. An assembler and a disassembler](11-assembler-disassembler.md) | one instruction table, a disassembler that follows the code, a two-pass assembler |
 | [Appendix: bits, bytes and hex](appendix-bits-bytes-hex.md) | binary, hexadecimal, AND/OR/XOR, shifts, masks |
 
 ## Further reading
@@ -40,4 +45,7 @@ to free, and a `switch` statement is all the dispatch you need.
   by Matthew Mikolay — the original COSMAC VIP behaviour, which this emulator
   follows by default.
 - [CHIP-8 test suite](https://github.com/Timendus/chip8-test-suite)
-  by Timendus — the ROMs used in chapter 8.
+  by Timendus — the ROMs used in chapters 8 and 10, and the notes on legacy
+  SUPER-CHIP.
+- [CHIP-8 variant opcode table](https://chip8.gulrak.net) by Gulrak — which
+  instruction exists where, with SUPER-CHIP 1.1's quirks (chapter 10).

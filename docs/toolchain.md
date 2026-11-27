@@ -13,7 +13,7 @@ bun is the only JavaScript runtime involved, in five roles:
 | package manager | `bun install` pins `scriptc`, `@types/bun`, `typescript` in `bun.lock`, and runs scriptc's postinstall, which installs the native compiler |
 | script runner | `bun scripts/build.ts`, `bun scripts/verify.ts` — TypeScript executed directly, using `Bun.spawn` for parallel compiles |
 | test runner | `bun test` runs `tests/*.test.ts` with `bun:test` |
-| development runtime | `bun src/main.ts rom.ch8 --headless 120` runs the emulator core without compiling; the `declare`d raylib functions are simply never called on that path |
+| development runtime | `bun src/main.ts rom.ch8 --headless 120` runs the emulator core without compiling; the `declare`d raylib functions are simply never called on that path. `bun src/tools.ts dis rom.ch8` runs the tools the same way |
 | bundler | `bun scripts/build-web.ts` calls `Bun.build` to turn `src/web.ts` into `dist/web/web.js` for browsers, and `Bun.serve` to host the result with `--serve` |
 
 scriptc itself is a native executable and needs no JavaScript runtime. bun
@@ -119,7 +119,9 @@ bun scripts/build.ts [--clean] [--run <rom> [emulator args...]]
 6. **scriptc**: `node_modules/scriptc/bin/scriptc.exe build src/main.ts --tier static-only --ffi native/build/ffi.json -o dist/chip8[.exe]`.
    The script first checks that the compiler is installed and is not the
    placeholder left when the postinstall did not run.
-7. `--run <rom> ...` executes the fresh binary with the remaining arguments.
+7. **scriptc again**: `scriptc.exe build src/tools.ts --tier static-only -o dist/chip8-tools[.exe]`,
+   the assembler and disassembler. No manifest: this program calls no C.
+8. `--run <rom> ...` executes the fresh emulator with the remaining arguments.
 
 Artifacts:
 
@@ -129,7 +131,8 @@ Artifacts:
 | `native/build/c8rl.o` | the shim |
 | `native/build/ffi.json` | generated manifest |
 | `dist/chip8.exe` | the emulator |
-| `dist/main.ll` | LLVM IR scriptc generated for the program |
+| `dist/chip8-tools.exe` | the assembler and disassembler |
+| `dist/main.ll`, `dist/tools.ll` | LLVM IR scriptc generated for each program |
 
 ## scripts/verify.ts
 
@@ -137,8 +140,18 @@ Artifacts:
 bun scripts/verify.ts [--no-build]
 ```
 
-Builds (unless `--no-build`), then runs eleven headless cases — the Timendus
-ROMs, three games with scripted key presses and quirk flags, a missing ROM
-and an invalid option — through `dist/chip8.exe` and through
-`bun src/main.ts`, printing `ok` or the two outputs side by side. The exit
-code is non-zero if any case differs.
+Builds (unless `--no-build`), then:
+
+1. runs twenty headless cases through `dist/chip8.exe` and through
+   `bun src/main.ts`: the Timendus ROMs, including the quirks and scrolling
+   tests in both SUPER-CHIP profiles, games and SUPER-CHIP programs with
+   scripted key presses and quirk flags, a SUPER-CHIP program under the
+   CHIP-8 profile, a missing ROM and an invalid option;
+2. for every ROM in `roms/`, compares the listing `dist/chip8-tools.exe dis`
+   prints with the one from `bun src/tools.ts dis`, then has the native
+   assembler rebuild the ROM from the native listing and compares the bytes;
+3. runs five error cases through both tools programs: assembly errors, an
+   oversized ROM, a missing file, an unknown command, no arguments.
+
+It prints `ok` per check, or the two outputs side by side. The exit code is
+non-zero if any check fails.

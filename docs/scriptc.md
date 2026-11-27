@@ -36,6 +36,16 @@ node_modules/scriptc/bin/scriptc.exe build src/main.ts --tier static-only --ffi 
 - `-o dist/chip8.exe` — output path. The generated LLVM IR is kept beside it
   as `dist/main.ll`.
 
+The assembler and disassembler are a second program, built the same way
+without a manifest:
+
+```
+node_modules/scriptc/bin/scriptc.exe build src/tools.ts --tier static-only -o dist/chip8-tools.exe
+```
+
+Its IR is `dist/tools.ll`. `scriptc coverage` reports both programs as fully
+static.
+
 No environment variables are needed. scriptc links with zig on Windows and
 with clang on glibc Linux; `SCRIPTC_LINKER` would replace that driver and
 `SCRIPTC_TARGET` would select a cross target, and this project uses neither.
@@ -130,11 +140,11 @@ void c8rl_draw_display(const uint8_t *pixels, size_t length,
 
 ## Language rules that shape the code
 
-scriptc compiles everything this program uses. Two rules shape it:
+scriptc compiles everything these programs use. Two rules shape them:
 
 | Rule | Where it shows |
 | ---- | -------------- |
-| a user `throw` is catchable; runtime traps, such as out-of-range reads of statically typed arrays, are not | `loadRom` throws for oversized images (caught in `main`); every memory index is masked with `& 0xfff`; bad opcodes and stack errors set `halted` instead of throwing |
+| a user `throw` is catchable; runtime traps, such as out-of-range reads of statically typed arrays, are not | `loadRom` throws for oversized images (caught in `main`); every memory index is masked with `& 0xfff`; bad opcodes and stack errors set `halted` instead of throwing; `disassemble` throws for oversized ROMs (caught in `tools.ts`), and the assembler and disassembler bound every array index by the array's length |
 | `scriptc run` does not forward arguments | the build produces a binary and runs that |
 
 `process.argv` has the same shape as under Node (`argv[0]` is `"scriptc"`,
@@ -149,10 +159,12 @@ bun src/main.ts roms/tests/3-corax+.ch8 --headless 400
 dist\chip8.exe   roms/tests/3-corax+.ch8 --headless 400
 ```
 
-`scripts/verify.ts` runs eleven such cases through both and requires
-byte-identical stdout and exit codes. It is the regression test for the
-compiler step itself: a semantic difference between scriptc's runtime and
-JavaScript would show up as a diff.
+`scripts/verify.ts` runs twenty such cases through both and requires
+byte-identical stdout and exit codes. It does the same for `chip8-tools`:
+the listing of every ROM in `roms/`, and the native assembler's rebuild of
+each ROM from that listing. It is the regression test for the compiler step
+itself: a semantic difference between scriptc's runtime and JavaScript would
+show up as a diff.
 
 ## Further reading
 

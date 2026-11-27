@@ -42,8 +42,8 @@ test("8XY4 sets VF to the carry after storing the sum", () => {
 Write one of these per instruction as you implement it, and one per rule you
 learned the hard way: the VF write order, `X == Y` operands, sprites at the
 right edge, `FX0A` with a key already held, `FX55` with X = F. The file
-`tests/chip8.test.ts` in this repository has about forty of them and is a
-reasonable checklist.
+`tests/chip8.test.ts` in this repository has about fifty of them, SUPER-CHIP's
+included, and is a reasonable checklist.
 
 ## Test ROMs
 
@@ -60,15 +60,15 @@ screen:
 | `5-quirks.ch8` | 1500, press `1` at frame 30 | detects the six quirks and prints `ON`/`OFF` with a check when it matches the selected platform |
 | `6-keypad.ch8` | interactive | `EX9E`, `EXA1`, `FX0A` |
 | `7-beep.ch8` | 200 | sets the sound timer; useful for the host's beep |
+| `8-scrolling.ch8` | 400, menu | SUPER-CHIP's scroll instructions (chapter 10) |
 
 The quirks ROM is the important one. Choose "CHIP-8" from its menu (key `1`)
 and it reports, for the original behaviour, `VF RESET ON`, `MEMORY ON`
 (I incremented by `FX55`/`FX65`), `DISP.WAIT ON`, `CLIPPING ON`,
 `SHIFTING OFF` (shift VY), `JUMPING OFF` (`BNNN` uses V0) — the six fields
-of the `Quirks` object in chapter 5, each with a check mark. Under the
-SUPER-CHIP preset the ROM's own SUPER-CHIP mode uses instructions outside
-CHIP-8 (`00FF`, high resolution), so this interpreter halts there by design;
-the SUPER-CHIP quirks are covered by unit tests instead.
+of the `Quirks` object in chapter 5, each with a check mark. Its SUPER-CHIP
+modes switch to high resolution with `00FF`, which only a SUPER-CHIP
+interpreter has; chapter 10 adds it and runs them.
 
 In this repository the whole table is one command each:
 
@@ -82,14 +82,20 @@ Once a test ROM shows all check marks, keep that screen. A snapshot test runs
 the ROM again and compares the rendered text with the saved file:
 
 ```ts
-test("3-corax+.ch8", () => {
-  const vm = run({ rom: "3-corax+.ch8", frames: 400, presses: [] });
-  const actual = renderAscii(vm.display) + "\n";
-  const path = join(SNAPSHOT_DIR, "3-corax+.txt");
-  if (process.env.UPDATE_SNAPSHOTS === "1" || !existsSync(path)) writeFileSync(path, actual);
-  expect(actual).toBe(readFileSync(path, "utf8"));
-});
+for (const c of CASES) {
+  test(c.snapshot, () => {
+    const vm = run(c);
+    expect(vm.halted).toBe(false);
+    const actual = renderAscii(vm.display, vm.width, vm.height) + "\n";
+    const path = join(SNAPSHOT_DIR, `${c.snapshot}.txt`);
+    if (UPDATE || !existsSync(path)) writeFileSync(path, actual);
+    expect(actual).toBe(readFileSync(path, "utf8").replace(/\r\n/g, "\n"));
+  });
+}
 ```
+
+Each case names a ROM, a number of frames, the key presses, and a quirk
+profile; `run` is the headless frame loop of chapter 7.
 
 This works because the interpreter is deterministic (chapter 6's random
 generator has a fixed seed). Any later change that alters a single pixel of a

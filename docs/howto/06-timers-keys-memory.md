@@ -41,8 +41,9 @@ every frame.
 
 The timers were introduced in chapter 1 and decrement in `tickTimers()`,
 which the frame loop (chapter 7) calls sixty times a second. The instructions
-themselves are trivial. (These `F` cases live in `executeMisc(nn, x, vx)`,
-selected by the last two digits, and return `false` for an unknown one.)
+themselves are trivial. (These `F` cases live in a helper,
+`executeMisc(opcode, at, x, vx)`, which switches on the last two digits and
+returns `false` for an unknown one.)
 
 ```ts
 case 0x07:

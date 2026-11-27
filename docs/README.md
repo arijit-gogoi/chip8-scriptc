@@ -12,12 +12,13 @@ in the build:
 | [toolchain.md](toolchain.md) | the roles of bun, zig and raylib, and what `scripts/build.ts` does step by step |
 
 **How to write a CHIP-8 emulator** — a tutorial series in
-[howto/](howto/README.md). It starts from "what is CHIP-8" and ends with a
-working interpreter in TypeScript, following the code in `src/chip8.ts`. No
-prior emulator experience is assumed; you need to know basic TypeScript
+[howto/](howto/README.md). It starts from "what is CHIP-8", builds a working
+interpreter in TypeScript following the code in `src/chip8.ts`, extends it
+to SUPER-CHIP, and ends with the assembler and disassembler. No prior
+emulator experience is assumed; you need to know basic TypeScript
 (variables, functions, classes, arrays) and be willing to learn what a byte is.
 
 **A blog post** — [blog/chip8-scriptc.md](blog/chip8-scriptc.md) describes
 the project for readers who have not seen the code: how scriptc compiles the
 TypeScript, how it calls raylib, why the build uses zig, and how the native
-binary is checked against bun.
+binaries are checked against bun.

@@ -5,18 +5,20 @@ Play it in the browser: [arijit-gogoi.github.io/chip8-scriptc](https://arijit-go
 
 [scriptc](https://scriptc.dev) is an experimental compiler from Vercel Labs
 that turns TypeScript into a native executable with no JavaScript engine
-inside. This project is a CHIP-8 emulator written only in TypeScript,
-compiled to native code with scriptc 0.4.17, with
-[raylib](https://www.raylib.com) for the display. It is also a fair test of
-whether scriptc can carry a complete interactive program.
+inside. This project is a CHIP-8 and SUPER-CHIP emulator written only in
+TypeScript, compiled to native code with scriptc 0.4.17, with
+[raylib](https://www.raylib.com) for the display, plus an assembler and a
+disassembler compiled the same way. It is also a fair test of whether
+scriptc can carry a complete interactive program.
 
 It can. The repository builds `chip8.exe`, a 1.9 MB Windows executable with
-raylib linked in, from 826 lines of TypeScript and a 154-line C shim. It opens
-a resizable window, maps the keyboard to the hex keypad, and beeps. The same
-TypeScript runs unchanged under bun, and a second front end runs it in the
-browser. This post covers how the pieces fit, how scriptc compiles the program
-and calls raylib, the C toolchain around it, and how the native binary is
-checked against bun.
+raylib linked in, from 1,099 lines of TypeScript and a 154-line C shim. It
+opens a resizable window, maps the keyboard to the hex keypad, and beeps.
+Next to it, `chip8-tools.exe` is the assembler and disassembler, 893 lines of
+TypeScript with no C at all. The same TypeScript runs unchanged under bun,
+and a second front end runs the emulator in the browser. This post covers how
+the pieces fit, how scriptc compiles the programs and calls raylib, the C
+toolchain around them, and how the native binaries are checked against bun.
 
 ## Why CHIP-8
 
@@ -24,15 +26,18 @@ CHIP-8 is a virtual machine that Joseph Weisbecker created in 1977 for the
 COSMAC VIP, a hobbyist computer. The machine is tiny: 4 KB of memory, sixteen
 8-bit registers (V0 to VF), an address register, a call stack, two timers that
 count down at 60 Hz, a 64 × 32 monochrome display that sprites are XORed onto,
-a 16-key hex keypad, and 35 two-byte instructions.
+a 16-key hex keypad, and 35 two-byte instructions. SUPER-CHIP, a 1991
+interpreter for the HP-48 calculators, adds ten more: a 128 × 64 mode,
+scrolling, 16 × 16 sprites, large digits, and registers that outlive the
+program. The emulator runs both.
 
 That makes it a good compiler test. An interpreter is a hot loop of bit
 manipulation over byte arrays, wrapped in a class, with strings for error
 messages and a frame loop around it. There is also a ready-made test bench:
 Timendus' [CHIP-8 test suite](https://github.com/Timendus/chip8-test-suite)
-checks every opcode and the quirks, and John Earnest's
-[chip8Archive](https://github.com/JohnEarnest/chip8Archive) has games under
-CC0.
+checks every opcode, the quirks and SUPER-CHIP's scrolling, and John
+Earnest's [chip8Archive](https://github.com/JohnEarnest/chip8Archive) has
+games under CC0.
 
 ## One core, three hosts
 
@@ -63,8 +68,11 @@ byte per pixel. The core never calls out.
   JavaScript; scriptc is not involved.
 
 Two smaller decisions make the rest easier. Differences between CHIP-8
-interpreters, the "quirks", are data: six booleans in a `Quirks` object, with
-presets for the original COSMAC VIP and for SUPER-CHIP. And randomness is
+interpreters, the "quirks", are data: ten booleans in a `Quirks` object, with
+presets for the original COSMAC VIP, for SUPER-CHIP as modern interpreters
+implement it, and for SUPER-CHIP 1.1 as it behaves on the calculator. One of
+the booleans switches the SUPER-CHIP instructions on; the display buffer is
+sized for 128 × 64 and holds whichever resolution is active. And randomness is
 deterministic: `CXNN` draws from an xorshift32 generator with a fixed seed, so
 a ROM run with the same key presses always ends on the same screen. That
 property is what makes it possible to compare the compiled program with the
@@ -80,11 +88,12 @@ runtime; the program's own functions become machine code.
 
 Code that scriptc cannot compile natively fails the build with an `SCnnnn`
 code and a rewrite hint. The build passes `--tier static-only` to keep it that
-way, and `scriptc coverage` reports every statement of this program as static.
-[`scripts/build.ts`](../../scripts/build.ts) ends with:
+way, and `scriptc coverage` reports every statement of both programs as
+static. [`scripts/build.ts`](../../scripts/build.ts) ends with:
 
 ```
 node_modules/scriptc/bin/scriptc.exe build src/main.ts --tier static-only --ffi native/build/ffi.json -o dist/chip8.exe
+node_modules/scriptc/bin/scriptc.exe build src/tools.ts --tier static-only -o dist/chip8-tools.exe
 ```
 
 The program needs nothing beyond ordinary TypeScript, but one rule shapes its
@@ -153,8 +162,9 @@ every call it needs:
 
 - Colours travel as `0xRRGGBBAA` integers. The shim turns them into a `Color`
   with raylib's `GetColor()`.
-- The whole 64 × 32 framebuffer crosses the boundary once per frame as 2,048
-  bytes. The shim draws one rectangle per lit pixel, and raylib batches them.
+- The framebuffer crosses the boundary once per frame: 2,048 bytes at
+  64 × 32, 8,192 at 128 × 64, with the column and row counts beside it. The
+  shim draws one rectangle per lit pixel, and raylib batches them.
 - Strings are borrowed only for the duration of the call, and raylib wants
   NUL-terminated ones, so `c8rl_init` copies the window title before passing
   it on.
@@ -165,6 +175,23 @@ every call it needs:
 Under bun, the `declare`d functions have no implementation, and only the
 window host calls them. So `bun src/main.ts rom.ch8 --headless 120` runs the
 same program without a window, which turns out to matter a lot.
+
+## A second program: the assembler and disassembler
+
+`chip8-tools` is ordinary command-line TypeScript: files in, text or bytes
+out, no FFI. Its disassembler does not decode a ROM front to back, because
+ROMs mix code with sprites; it follows the program from `0x200` through
+jumps, calls and both outcomes of every skip, lists what it reaches as
+instructions, and draws every other byte as a sprite row. Its assembler is a
+classic two-pass design with labels, constants and simple expressions. Both
+read one instruction table, [`src/opcodes.ts`](../../src/opcodes.ts), with
+Cowgod's mnemonics, so a listing always assembles back into the bytes it came
+from. The tests check that for every 16-bit word and for every ROM in the
+repository.
+
+For scriptc it is a different kind of program from the emulator: string
+scanning, maps, records and error lists instead of a hot loop over bytes. It
+compiled under `--tier static-only` as written.
 
 ## The toolchain
 
@@ -233,32 +260,39 @@ frames=120 pc=0x228 i=0x275 dt=0 st=0
 Everything the emulator does that matters ends up in that text: the screen,
 the program counter, the index register and the timers. Because the core is
 deterministic and the program also runs under bun,
-[`scripts/verify.ts`](../../scripts/verify.ts) runs eleven cases through both
+[`scripts/verify.ts`](../../scripts/verify.ts) runs twenty cases through both
 `dist/chip8.exe` and `bun src/main.ts` and requires identical standard output
-and exit codes. The cases are the test ROMs, three games run with scripted key
-presses or non-default quirk settings, a missing ROM file and an invalid
-option:
+and exit codes. The cases are the test ROMs, including the quirks and
+scrolling tests in both SUPER-CHIP profiles, games and SUPER-CHIP programs
+run with scripted key presses or non-default quirk settings, a missing ROM
+file and an invalid option. The tools get the same treatment: for every ROM
+in the repository, the native disassembler's listing must match bun's, and
+the native assembler must turn that listing back into the original bytes.
 
 ```
 > bun scripts/verify.ts --no-build
 ok   roms/tests/1-chip8-logo.ch8 --headless 120
 ...
-ok   roms/games/tank.ch8 --headless 300 --press 8@60+20 --quirks schip
-ok   roms/games/flightrunner.ch8 --headless 240 --wrap --no-wait --ipf 30
-ok   missing.ch8 --headless 1
-ok   roms/games/outlaw.ch8 --ipf 0
-all 11 cases identical
+ok   roms/schip/squad.ch8 --headless 300 --quirks schip --ipf 500
+...
+ok   dis roms/games/outlaw.ch8
+ok   asm of the native listing rebuilds roms/games/outlaw.ch8
+...
+ok   chip8-tools asm errors.s
+all 89 checks passed
 ```
 
 This is the regression test for the compiler step itself: a semantic
 difference between scriptc's output and JavaScript would show up as a diff.
 
-Below that sit ordinary unit tests: 56 tests under `bun test` for opcode
-semantics and edge cases, argument parsing, and framebuffer snapshots of the
-Timendus ROMs. The snapshots show every row of the opcode and flag tests
-passing, and all six quirks detected as expected for CHIP-8. The whole suite
-runs in a fraction of a second, because the core needs no window and nothing
-has to be mocked.
+Below that sit ordinary unit tests: 122 tests under `bun test` for opcode
+semantics and edge cases, argument parsing, framebuffer snapshots of the
+Timendus ROMs, and the assembler and disassembler. The snapshots show every
+row of the opcode and flag tests passing, all six quirks detected as
+expected for CHIP-8 and both SUPER-CHIP profiles, and the scrolling test's
+arrows in their boxes. Every 16-bit word that decodes as an instruction is
+disassembled and assembled back. The whole suite runs in under a second,
+because the core needs no window and nothing has to be mocked.
 
 CI on GitHub Actions runs all of it: unit tests, the type check and the
 browser bundle on Ubuntu; the native build and `verify` on both Windows and
@@ -270,7 +304,8 @@ Ubuntu; and a deployment of the browser build to GitHub Pages.
 from `requestAnimationFrame` through a 1/60-second accumulator, so a 144 Hz
 monitor still gets 60 CHIP-8 frames per second and a background tab catches up
 by at most four frames. It reads keys by physical key code, draws the
-framebuffer into a 64 × 32 `ImageData` scaled onto a canvas, offers an
+framebuffer into an `ImageData` of the current resolution scaled onto a
+canvas, offers an
 on-screen keypad, and beeps with a Web Audio square wave that starts on the
 first key press, because browsers allow audio only after a user gesture.
 `Bun.build` bundles it into one minified `web.js`, and the build copies every
@@ -286,7 +321,8 @@ TypeScript as JavaScript is the simpler answer.
 
 - **scriptc compiles a complete interactive program.** Window, keyboard,
   audio, file reading and command-line parsing, from TypeScript that still
-  runs anywhere TypeScript runs.
+  runs anywhere TypeScript runs. The assembler and disassembler, string
+  processing with maps, records and classes, compile just as fully.
 - **A scalar FFI is easy to reason about.** The cost is a C shim for any
   library that passes structs, which raylib does everywhere.
 - **On Windows, one C toolchain avoids a class of linking problems.** zig
@@ -305,8 +341,9 @@ with host imports could replace the bun-bundled browser host.
 
 - Source: [github.com/arijit-gogoi/chip8-scriptc](https://github.com/arijit-gogoi/chip8-scriptc).
   [docs/](../README.md) explains the architecture, scriptc and the toolchain
-  in detail, and [docs/howto/](../howto/README.md) is a ten-chapter tutorial
-  that builds this interpreter from scratch in TypeScript.
+  in detail, and [docs/howto/](../howto/README.md) is a twelve-chapter
+  tutorial that builds this interpreter from scratch in TypeScript, then the
+  SUPER-CHIP extension and the assembler and disassembler.
 - Play in the browser: [arijit-gogoi.github.io/chip8-scriptc](https://arijit-gogoi.github.io/chip8-scriptc/)
 - [scriptc](https://scriptc.dev)
 - [raylib](https://www.raylib.com)

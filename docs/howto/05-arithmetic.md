@@ -141,7 +141,8 @@ case 0xe: {
 
 This is where the interpreter grows its `quirks` field. Rather than two
 copies of the code, the behaviours that differ between CHIP-8 interpreters
-are six booleans, and each instruction reads the one it cares about:
+are six booleans (chapter 10 adds four for SUPER-CHIP), and each instruction
+reads the one it cares about:
 
 ```ts
 export interface Quirks {

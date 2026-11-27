@@ -175,11 +175,11 @@ that the compiled program is the program you tested.
   a Web Audio oscillator. `bun run build:web` bundles it. Compare it with
   `runWindowed` above: the loop is the same, only the six platform needs are
   answered differently.
-- **SUPER-CHIP.** Add the `00CN`/`00FB`–`00FF`/`DXY0`/`FX30`/`FX75`/`FX85`
-  instructions and a 128x64 mode; the quirks object already has the right
-  preset.
-- **A debugger.** A disassembler for the 35 opcodes is an afternoon's work,
-  and pausing with `P` already exists.
+- **SUPER-CHIP.** Ten more instructions and a 128x64 mode:
+  [chapter 10](10-superchip.md).
+- **Tools.** An assembler, and a disassembler that follows the code:
+  [chapter 11](11-assembler-disassembler.md). Together with pausing on `P`
+  they are most of a debugger.
 - **A bigger machine.** Everything here — fetch/decode/execute, registers, a
   stack, timers, memory-mapped sprites, quirk switches, headless testing —
   is the foundation of a Game Boy or NES emulator. The instruction count goes
