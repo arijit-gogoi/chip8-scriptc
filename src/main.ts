@@ -1,5 +1,5 @@
 /// <reference path="./rl.d.ts" />
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { Chip8, DISPLAY_HEIGHT, DISPLAY_WIDTH, KEY_COUNT, hex, renderAscii } from "./chip8";
 import { MAX_IPF, MIN_IPF, USAGE, baseName, parseOptions, quirksFor, type KeyPress, type Options } from "./cli";
 // The c8rl_* functions are ambient FFI declarations (see rl.d.ts, referenced
@@ -33,14 +33,41 @@ function applyPresses(vm: Chip8, presses: KeyPress[], frame: number): void {
   }
 }
 
+/** Fill the SUPER-CHIP flag registers from the --flags file, when it exists. */
+function loadFlags(vm: Chip8, path: string): void {
+  if (path === "" || !existsSync(path)) return;
+  let bytes: Uint8Array;
+  try {
+    bytes = readFileSync(path);
+  } catch {
+    console.log(`cannot read flags file ${path}`);
+    return;
+  }
+  for (let k = 0; k < bytes.length && k < vm.flags.length; k++) {
+    vm.flags[k] = bytes[k];
+  }
+}
+
+/** Write the flag registers to the --flags file after FX75 changed them. */
+function saveFlags(vm: Chip8, path: string): void {
+  if (path === "" || !vm.flagsChanged) return;
+  vm.flagsChanged = false;
+  try {
+    writeFileSync(path, vm.flags);
+  } catch {
+    console.log(`cannot write flags file ${path}`);
+  }
+}
+
 function runHeadless(vm: Chip8, opts: Options): void {
   let frame = 0;
   while (frame < opts.frames && !vm.halted) {
     applyPresses(vm, opts.presses, frame);
     vm.stepFrame(opts.ipf);
+    saveFlags(vm, opts.flagsFile);
     frame++;
   }
-  console.log(renderAscii(vm.display));
+  console.log(renderAscii(vm.display, vm.width, vm.height));
   let status = `frames=${frame} pc=${hex(vm.pc, 3)} i=${hex(vm.i, 3)} dt=${vm.delayTimer} st=${vm.soundTimer}`;
   if (vm.halted) status += ` halted: ${vm.haltReason}`;
   console.log(status);
@@ -73,6 +100,7 @@ function runWindowed(vm: Chip8, rom: Uint8Array, opts: Options): void {
     }
 
     if (!paused) vm.stepFrame(ipf);
+    saveFlags(vm, opts.flagsFile);
 
     if (opts.sound) {
       c8rl_beep(!muted && !paused && vm.soundTimer > 0);
@@ -81,13 +109,14 @@ function runWindowed(vm: Chip8, rom: Uint8Array, opts: Options): void {
 
     const width = c8rl_screen_width();
     const height = c8rl_screen_height();
-    const scale = Math.max(1, Math.floor(Math.min(width / DISPLAY_WIDTH, height / DISPLAY_HEIGHT)));
-    const originX = Math.floor((width - DISPLAY_WIDTH * scale) / 2);
-    const originY = Math.floor((height - DISPLAY_HEIGHT * scale) / 2);
+    // The largest integer scale for the current resolution (64x32 or 128x64).
+    const scale = Math.max(1, Math.floor(Math.min(width / vm.width, height / vm.height)));
+    const originX = Math.floor((width - vm.width * scale) / 2);
+    const originY = Math.floor((height - vm.height * scale) / 2);
 
     c8rl_begin();
     c8rl_clear(0x000000ff);
-    c8rl_draw_display(vm.display, DISPLAY_WIDTH, DISPLAY_HEIGHT, originX, originY, scale, opts.fg, opts.bg);
+    c8rl_draw_display(vm.display, vm.width, vm.height, originX, originY, scale, opts.fg, opts.bg);
     if (vm.halted) {
       c8rl_draw_text(`HALTED: ${vm.haltReason}`, originX + 8, originY + 8, 20, 0xff5252ff);
     } else if (paused) {
@@ -125,6 +154,7 @@ function main(): void {
     console.log(`cannot load ROM ${opts.rom}: ${reason}`);
     process.exit(1);
   }
+  loadFlags(vm, opts.flagsFile);
 
   if (opts.headless) runHeadless(vm, opts);
   else runWindowed(vm, rom, opts);

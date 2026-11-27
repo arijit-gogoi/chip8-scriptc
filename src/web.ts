@@ -3,7 +3,7 @@
  * a <canvas>, fed by keyboard and on-screen keypad, with a Web Audio beep.
  * Bundled by scripts/build-web.ts into dist/web/web.js.
  */
-import { Chip8, DISPLAY_HEIGHT, DISPLAY_WIDTH, KEY_COUNT, chip8Quirks, hex, schipQuirks, type Quirks } from "./chip8";
+import { Chip8, DISPLAY_HEIGHT, DISPLAY_WIDTH, KEY_COUNT, chip8Quirks, hex, profileQuirks, type Quirks } from "./chip8";
 import { DEFAULT_IPF, MAX_IPF, MIN_IPF } from "./cli";
 
 const FRAME_MS = 1000 / 60;
@@ -32,6 +32,8 @@ interface RomEntry {
   name: string;
   path: string;
   size: number;
+  /** Quirk profile the ROM expects (a value of the quirks select). */
+  profile: string;
 }
 
 function element<T extends HTMLElement>(id: string): T {
@@ -61,9 +63,15 @@ let paused = false;
 // ---- quirks -------------------------------------------------------------
 
 function selectedQuirks(): Quirks {
-  const quirks = quirksSelect.value === "schip" ? schipQuirks() : chip8Quirks();
+  const quirks = profileQuirks(quirksSelect.value);
   quirks.wrapSprites = wrapInput.checked;
   return quirks;
+}
+
+/** Select the profile a listed ROM expects. */
+function selectProfile(profile: string | undefined): void {
+  quirksSelect.value = profile ?? "chip8";
+  vm.quirks = selectedQuirks();
 }
 
 // ---- ROM loading --------------------------------------------------------
@@ -111,10 +119,12 @@ async function populateRoms(): Promise<void> {
     const option = document.createElement("option");
     option.value = entry.path;
     option.textContent = `${entry.name} (${entry.size} B)`;
+    option.dataset.profile = entry.profile;
     group.appendChild(option);
   }
   if (entries.length > 0) {
     romSelect.value = entries[0].path;
+    selectProfile(entries[0].profile);
     await loadFromUrl(entries[0].path, entries[0].name);
   }
 }
@@ -159,11 +169,17 @@ const backing = document.createElement("canvas");
 backing.width = DISPLAY_WIDTH;
 backing.height = DISPLAY_HEIGHT;
 const backingContext = context2d(backing);
-const image = backingContext.createImageData(DISPLAY_WIDTH, DISPLAY_HEIGHT);
+let image = backingContext.createImageData(DISPLAY_WIDTH, DISPLAY_HEIGHT);
 
 function draw(): void {
+  // The backing canvas follows the resolution: 64x32, or 128x64 for SUPER-CHIP's high resolution.
+  if (image.width !== vm.width || image.height !== vm.height) {
+    backing.width = vm.width;
+    backing.height = vm.height;
+    image = backingContext.createImageData(vm.width, vm.height);
+  }
   const pixels = image.data;
-  for (let k = 0; k < DISPLAY_WIDTH * DISPLAY_HEIGHT; k++) {
+  for (let k = 0; k < vm.width * vm.height; k++) {
     const rgb = vm.display[k] !== 0 ? FG : BG;
     pixels[k * 4] = rgb[0];
     pixels[k * 4 + 1] = rgb[1];
@@ -294,7 +310,9 @@ for (const [key, label] of KEYPAD_LAYOUT) {
 
 romSelect.addEventListener("change", () => {
   const option = romSelect.selectedOptions[0];
-  if (option !== undefined) void loadFromUrl(option.value, option.textContent ?? option.value);
+  if (option === undefined) return;
+  selectProfile(option.dataset.profile);
+  void loadFromUrl(option.value, option.textContent ?? option.value);
 });
 fileInput.addEventListener("change", () => {
   const file = fileInput.files?.[0];

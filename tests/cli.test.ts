@@ -82,6 +82,7 @@ describe("parseOptions", () => {
       presses: [],
       fg: 0xdcdcdcff,
       bg: 0x202020ff,
+      flagsFile: "",
     });
   });
 
@@ -89,7 +90,7 @@ describe("parseOptions", () => {
     const parsed = parseOptions([
       "--ipf", "700", "--scale", "8", "--quirks", "schip", "--wrap", "--no-sound",
       "--fg", "00ff00", "--bg", "101010", "--headless", "120", "--press", "1@30", "--press", "5@60+3",
-      "roms/x.ch8",
+      "--flags", "saves/flags.bin", "roms/x.ch8",
     ]);
     expect(parsed.error).toBe("");
     const opts = parsed.options!;
@@ -108,6 +109,13 @@ describe("parseOptions", () => {
       { key: 1, frame: 30, frames: DEFAULT_PRESS_FRAMES },
       { key: 5, frame: 60, frames: 3 },
     ]);
+    expect(opts.flagsFile).toBe("saves/flags.bin");
+  });
+
+  test("--quirks schip-legacy keeps the display wait", () => {
+    const opts = parseOptions(["rom.ch8", "--quirks", "schip-legacy"]).options!;
+    expect(opts.profile).toBe("schip-legacy");
+    expect(opts.displayWait).toBe(true);
   });
 
   test("--no-wait after --quirks chip8, ROM before options", () => {
@@ -135,7 +143,8 @@ describe("parseOptions", () => {
     expect(error(["a.ch8", "--ipf", String(MAX_IPF + 1)])).toContain("--ipf must be between");
     expect(error(["a.ch8", "--ipf", "ten"])).toContain("--ipf must be between");
     expect(error(["a.ch8", "--scale", "0"])).toBe("--scale must be between 1 and 64");
-    expect(error(["a.ch8", "--quirks", "xochip"])).toBe("--quirks must be chip8 or schip");
+    expect(error(["a.ch8", "--quirks", "xochip"])).toBe("--quirks must be chip8, schip or schip-legacy");
+    expect(error(["a.ch8", "--flags"])).toBe("missing value for --flags");
     expect(error(["a.ch8", "--headless", "x"])).toBe("--headless needs a frame count");
     expect(error(["a.ch8", "--press", "1"])).toContain("bad --press value 1");
     expect(error(["a.ch8", "--fg", "red"])).toBe("--fg expects rrggbb");
@@ -147,10 +156,22 @@ describe("parseOptions", () => {
 describe("quirksFor", () => {
   test("profiles with overrides", () => {
     const chip8 = quirksFor(parseOptions(["r"]).options!);
-    expect(chip8).toEqual({ shiftVx: false, indexIncrement: true, jumpVx: false, vfReset: true, wrapSprites: false, displayWait: true });
+    expect(chip8).toEqual({
+      shiftVx: false, indexIncrement: true, jumpVx: false, vfReset: true, wrapSprites: false, displayWait: true,
+      superChip: false, loresHalfScroll: false, lores8x16: false, rowCollisions: false,
+    });
 
     const schip = quirksFor(parseOptions(["r", "--quirks", "schip"]).options!);
-    expect(schip).toEqual({ shiftVx: true, indexIncrement: false, jumpVx: true, vfReset: false, wrapSprites: false, displayWait: false });
+    expect(schip).toEqual({
+      shiftVx: true, indexIncrement: false, jumpVx: true, vfReset: false, wrapSprites: false, displayWait: false,
+      superChip: true, loresHalfScroll: false, lores8x16: false, rowCollisions: false,
+    });
+
+    const legacy = quirksFor(parseOptions(["r", "--quirks", "schip-legacy"]).options!);
+    expect(legacy).toEqual({
+      shiftVx: true, indexIncrement: false, jumpVx: true, vfReset: false, wrapSprites: false, displayWait: true,
+      superChip: true, loresHalfScroll: true, lores8x16: true, rowCollisions: true,
+    });
 
     const mixed = quirksFor(parseOptions(["r", "--wrap", "--no-wait"]).options!);
     expect(mixed.wrapSprites).toBe(true);

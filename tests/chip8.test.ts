@@ -3,13 +3,16 @@ import {
   Chip8,
   DISPLAY_HEIGHT,
   DISPLAY_WIDTH,
+  HIRES_HEIGHT,
+  HIRES_WIDTH,
   PROGRAM_START,
   chip8Quirks,
   renderAscii,
+  schipLegacyQuirks,
   schipQuirks,
   type Quirks,
 } from "../src/chip8";
-import { FONT_ADDRESS } from "../src/font";
+import { BIG_FONT_ADDRESS, FONT_ADDRESS } from "../src/font";
 
 /** Build a VM whose program consists of the given 16-bit opcodes. */
 function program(ops: number[], quirks: Quirks = chip8Quirks()): Chip8 {
@@ -28,7 +31,14 @@ function steps(vm: Chip8, count: number): void {
 }
 
 function pixel(vm: Chip8, x: number, y: number): number {
-  return vm.display[y * DISPLAY_WIDTH + x];
+  return vm.pixel(x, y);
+}
+
+/** Number of lit pixels on the display. */
+function litPixels(vm: Chip8): number {
+  let count = 0;
+  for (const p of vm.display) count += p;
+  return count;
 }
 
 describe("registers and flow", () => {
@@ -481,5 +491,178 @@ describe("edge cases", () => {
     expect(vm.stepFrame(10)).toBe(0);
     vm.step();
     expect(vm.v[1]).toBe(0);
+  });
+});
+
+describe("SUPER-CHIP", () => {
+  test("its instructions halt with a hint on the chip8 profile", () => {
+    for (const op of [0x00c1, 0x00fb, 0x00fc, 0x00fd, 0x00fe, 0x00ff, 0xf030, 0xf075, 0xf085]) {
+      const vm = program([op]);
+      vm.step();
+      expect(vm.halted).toBe(true);
+      expect(vm.haltReason).toContain("is a SUPER-CHIP instruction");
+    }
+  });
+
+  test("00FF / 00FE switch resolution and clear the display", () => {
+    // Glyph 0 in low resolution; then high resolution, glyph 0 at (120, 59); then low again.
+    const vm = program([0x6000, 0xf029, 0xd005, 0x00ff, 0x6178, 0x623b, 0xd125, 0x00fe], schipQuirks());
+    steps(vm, 3);
+    expect(litPixels(vm)).toBeGreaterThan(0);
+    vm.step();
+    expect(vm.hires).toBe(true);
+    expect(vm.width).toBe(HIRES_WIDTH);
+    expect(vm.height).toBe(HIRES_HEIGHT);
+    expect(litPixels(vm)).toBe(0);
+    steps(vm, 3);
+    expect(pixel(vm, 120, 59)).toBe(1);
+    expect(pixel(vm, 123, 63)).toBe(1);
+    vm.step();
+    expect(vm.hires).toBe(false);
+    expect(vm.width).toBe(DISPLAY_WIDTH);
+    expect(vm.height).toBe(DISPLAY_HEIGHT);
+    expect(litPixels(vm)).toBe(0);
+  });
+
+  test("high-resolution sprite origins wrap modulo 128 x 64", () => {
+    const vm = program([0x00ff, 0x6000, 0xf029, 0x6182, 0x6243, 0xd125], schipQuirks());
+    steps(vm, 6);
+    expect(pixel(vm, 2, 3)).toBe(1);
+  });
+
+  test("DXY0 draws a 16x16 sprite in both resolutions", () => {
+    for (const ops of [[0xa300, 0xd000], [0x00ff, 0xa300, 0xd000]]) {
+      const vm = program(ops, schipQuirks());
+      for (let row = 0; row < 16; row++) {
+        vm.memory[0x300 + row * 2] = 0x80;
+        vm.memory[0x300 + row * 2 + 1] = 0x01;
+      }
+      steps(vm, ops.length);
+      for (let row = 0; row < 16; row++) {
+        expect(pixel(vm, 0, row)).toBe(1);
+        expect(pixel(vm, 1, row)).toBe(0);
+        expect(pixel(vm, 15, row)).toBe(1);
+      }
+      expect(litPixels(vm)).toBe(32);
+    }
+  });
+
+  test("DXY0 draws 8x16 in low resolution on schip-legacy", () => {
+    const vm = program([0xa300, 0xd000], schipLegacyQuirks());
+    for (let row = 0; row < 16; row++) vm.memory[0x300 + row] = 0x81;
+    steps(vm, 2);
+    for (let row = 0; row < 16; row++) {
+      expect(pixel(vm, 0, row)).toBe(1);
+      expect(pixel(vm, 7, row)).toBe(1);
+    }
+    expect(litPixels(vm)).toBe(32);
+  });
+
+  test("high-resolution VF counts colliding and clipped rows on schip-legacy", () => {
+    // A 4-row sprite at y = 62 loses two rows at the bottom edge; it is drawn twice.
+    const ops = [0x00ff, 0xa300, 0x6100, 0x623e, 0xd124, 0xd124];
+    const legacy = program(ops, schipLegacyQuirks());
+    const modern = program(ops, schipQuirks());
+    for (const vm of [legacy, modern]) {
+      for (let row = 0; row < 4; row++) vm.memory[0x300 + row] = 0xff;
+      steps(vm, 5);
+    }
+    expect(legacy.v[0xf]).toBe(2);
+    expect(modern.v[0xf]).toBe(0);
+    legacy.step();
+    modern.step();
+    expect(legacy.v[0xf]).toBe(4);
+    expect(modern.v[0xf]).toBe(1);
+
+    // Low resolution keeps 1 or 0.
+    const lores = program([0xa300, 0x6100, 0x621e, 0xd124, 0xd124], schipLegacyQuirks());
+    for (let row = 0; row < 4; row++) lores.memory[0x300 + row] = 0xff;
+    steps(lores, 4);
+    expect(lores.v[0xf]).toBe(0);
+    lores.step();
+    expect(lores.v[0xf]).toBe(1);
+  });
+
+  test("00CN scrolls down N rows, half as far in low resolution on schip-legacy", () => {
+    const run = (ops: number[], quirks: Quirks): Chip8 => {
+      // One lit pixel at (V0, V0), then the scroll.
+      const vm = program(ops, quirks);
+      vm.memory[0x300] = 0x80;
+      steps(vm, ops.length);
+      return vm;
+    };
+    const modern = run([0xa300, 0x6005, 0xd001, 0x00c4], schipQuirks());
+    expect(pixel(modern, 5, 9)).toBe(1);
+    expect(litPixels(modern)).toBe(1);
+    expect(pixel(run([0xa300, 0x6005, 0xd001, 0x00c4], schipLegacyQuirks()), 5, 7)).toBe(1);
+    expect(pixel(run([0x00ff, 0xa300, 0x6005, 0xd001, 0x00c4], schipLegacyQuirks()), 5, 9)).toBe(1);
+    // Rows scrolled past the bottom edge are gone.
+    expect(litPixels(run([0xa300, 0x601f, 0xd001, 0x00c1], schipQuirks()))).toBe(0);
+  });
+
+  test("00FB / 00FC scroll 4 pixels right and left, 2 in low resolution on schip-legacy", () => {
+    const run = (scroll: number, quirks: Quirks): Chip8 => {
+      const vm = program([0xa300, 0x6005, 0xd001, scroll], quirks);
+      vm.memory[0x300] = 0x80;
+      steps(vm, 4);
+      return vm;
+    };
+    expect(pixel(run(0x00fb, schipQuirks()), 9, 5)).toBe(1);
+    expect(pixel(run(0x00fc, schipQuirks()), 1, 5)).toBe(1);
+    expect(pixel(run(0x00fb, schipLegacyQuirks()), 7, 5)).toBe(1);
+    expect(pixel(run(0x00fc, schipLegacyQuirks()), 3, 5)).toBe(1);
+
+    // Pixels scrolled past the left edge are gone.
+    const off = program([0xa300, 0x6002, 0xd001, 0x00fc], schipQuirks());
+    off.memory[0x300] = 0x80;
+    steps(off, 4);
+    expect(litPixels(off)).toBe(0);
+  });
+
+  test("00FD ends the program", () => {
+    const vm = program([0x6101, 0x00fd, 0x6102], schipQuirks());
+    steps(vm, 3);
+    expect(vm.halted).toBe(true);
+    expect(vm.haltReason).toBe("program exited at 0x202");
+    expect(vm.v[1]).toBe(1);
+  });
+
+  test("FX30 points at the large digit", () => {
+    const vm = program([0x6007, 0xf030], schipQuirks());
+    steps(vm, 2);
+    expect(vm.i).toBe(BIG_FONT_ADDRESS + 70);
+    expect(vm.memory[vm.i]).toBe(0xff);
+    expect(vm.memory[vm.i + 9]).toBe(0x60);
+  });
+
+  test("FX75 / FX85 save and load the flag registers, which survive a reset", () => {
+    const vm = program([0x6011, 0x6122, 0x6233, 0xf275], schipQuirks());
+    steps(vm, 4);
+    expect(Array.from(vm.flags.slice(0, 4))).toEqual([0x11, 0x22, 0x33, 0]);
+    expect(vm.flagsChanged).toBe(true);
+    vm.reset();
+    vm.loadRom(new Uint8Array([0xf1, 0x85]));
+    vm.step();
+    expect(vm.v[0]).toBe(0x11);
+    expect(vm.v[1]).toBe(0x22);
+    expect(vm.v[2]).toBe(0);
+  });
+
+  test("display wait applies only in low resolution", () => {
+    // Each program ends in a jump-to-self so a frame can run all 10 instructions.
+    const lores = program([0xd005, 0x6101, 0x6102, 0x1206], schipLegacyQuirks());
+    expect(lores.stepFrame(10)).toBe(1);
+    const hires = program([0x00ff, 0xd005, 0x6101, 0x6102, 0x1208], schipLegacyQuirks());
+    expect(hires.stepFrame(10)).toBe(10);
+    expect(hires.v[1]).toBe(2);
+  });
+
+  test("renderAscii prints the current resolution", () => {
+    const vm = program([0x00ff, 0x6000, 0xf029, 0xd005], schipQuirks());
+    steps(vm, 4);
+    const rows = renderAscii(vm.display, vm.width, vm.height).split("\n");
+    expect(rows.length).toBe(HIRES_HEIGHT);
+    expect(rows[0].length).toBe(HIRES_WIDTH);
+    expect(rows[0].slice(0, 5)).toBe("####.");
   });
 });

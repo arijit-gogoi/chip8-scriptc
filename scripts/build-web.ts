@@ -19,6 +19,13 @@ interface RomEntry {
   name: string;
   path: string;
   size: number;
+  /** Quirk profile the ROM expects. */
+  profile: string;
+}
+
+/** The SUPER-CHIP games, and the one test ROM that needs SUPER-CHIP instructions, expect the schip profile. */
+function profileFor(group: string, name: string): string {
+  return group === "schip" || name === "8-scrolling.ch8" ? "schip" : "chip8";
 }
 
 rmSync(outDir, { recursive: true, force: true });
@@ -38,13 +45,14 @@ if (!result.success) {
 cpSync(join(root, "web", "index.html"), join(outDir, "index.html"));
 
 const manifest: RomEntry[] = [];
-for (const group of ["tests", "games"]) {
+for (const group of ["tests", "games", "schip"]) {
   const source = join(root, "roms", group);
   const target = join(outDir, "roms", group);
   mkdirSync(target, { recursive: true });
   for (const name of readdirSync(source).filter((entry) => entry.endsWith(".ch8")).sort()) {
     cpSync(join(source, name), join(target, name));
-    manifest.push({ group, name, path: `roms/${group}/${name}`, size: statSync(join(source, name)).size });
+    const size = statSync(join(source, name)).size;
+    manifest.push({ group, name, path: `roms/${group}/${name}`, size, profile: profileFor(group, name) });
   }
 }
 writeFileSync(join(outDir, "roms.json"), JSON.stringify(manifest, null, 2) + "\n");

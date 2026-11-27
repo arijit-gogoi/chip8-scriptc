@@ -106,7 +106,8 @@
       <label>Quirks
         <select id="quirks">
           <option value="chip8">CHIP-8 (COSMAC VIP)</option>
-          <option value="schip">SUPER-CHIP</option>
+          <option value="schip">SUPER-CHIP (modern)</option>
+          <option value="schip-legacy">SUPER-CHIP 1.1 (HP-48)</option>
         </select>
       </label>
       <label><input id="wrap" type="checkbox"> wrap sprites</label>
@@ -117,7 +118,7 @@
     </div>
     <div id="status"></div>
     <div class="keypad" id="keypad"></div>
-    <p class="help">Keys 1234 / QWER / ASDF / ZXCV are the CHIP-8 keypad. P pauses, Backspace resets, + and − change speed, M mutes. Drop a .ch8 file anywhere on the page to load it.</p>
+    <p class="help">Keys 1234 / QWER / ASDF / ZXCV are the CHIP-8 keypad. P pauses, Backspace resets, + and − change speed, M mutes. Choosing a listed ROM selects the quirks it expects. Drop a .ch8 file anywhere on the page to load it.</p>
   </main>
   <script type="module" src="./web.js"></script>
 </body>

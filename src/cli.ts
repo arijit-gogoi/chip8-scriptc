@@ -1,4 +1,4 @@
-import { chip8Quirks, schipQuirks, type Quirks } from "./chip8";
+import { PROFILES, profileQuirks, type Quirks } from "./chip8";
 
 export const MIN_IPF = 1;
 export const MAX_IPF = 5000;
@@ -10,13 +10,15 @@ export const DEFAULT_PRESS_FRAMES = 30;
 export const USAGE = `usage: chip8 <rom.ch8> [options]
 
   --ipf <n>            instructions per 60 Hz frame (default ${DEFAULT_IPF})
-  --scale <n>          window pixels per CHIP-8 pixel (default ${DEFAULT_SCALE})
-  --quirks <profile>   chip8 (COSMAC VIP, default) or schip (SUPER-CHIP 1.1)
+  --scale <n>          window pixels per 64x32 pixel (default ${DEFAULT_SCALE})
+  --quirks <profile>   chip8 (COSMAC VIP, default), schip (modern SUPER-CHIP)
+                       or schip-legacy (SUPER-CHIP 1.1 on the HP-48)
   --wrap               wrap sprites around the screen edges instead of clipping
   --no-wait            do not limit DXYN to one sprite per frame
   --no-sound           do not open an audio device
   --fg <rrggbb>        pixel colour (default dcdcdc)
   --bg <rrggbb>        background colour (default 202020)
+  --flags <file>       keep the SUPER-CHIP flag registers (FX75/FX85) in this file
   --headless <frames>  run without a window, then print the display as text
   --press <k>@<f>[+n]  headless only: hold hex key k from frame f for n frames (default ${DEFAULT_PRESS_FRAMES})
 
@@ -41,6 +43,8 @@ export interface Options {
   presses: KeyPress[];
   fg: number;
   bg: number;
+  /** File holding the SUPER-CHIP flag registers; empty when they are not kept. */
+  flagsFile: string;
 }
 
 export interface ParseResult {
@@ -123,6 +127,7 @@ export function parseOptions(args: string[]): ParseResult {
     presses: [],
     fg: 0xdcdcdcff,
     bg: 0x202020ff,
+    flagsFile: "",
   };
   let k = 0;
   while (k < args.length) {
@@ -152,9 +157,11 @@ export function parseOptions(args: string[]): ParseResult {
         opts.scale = parseDecimal(value);
         if (opts.scale < 1 || opts.scale > 64) return failure("--scale must be between 1 and 64");
       } else if (arg === "--quirks") {
-        if (value !== "chip8" && value !== "schip") return failure("--quirks must be chip8 or schip");
+        if (!PROFILES.includes(value)) return failure("--quirks must be chip8, schip or schip-legacy");
         opts.profile = value;
         if (value === "schip") opts.displayWait = false;
+      } else if (arg === "--flags") {
+        opts.flagsFile = value;
       } else if (arg === "--headless") {
         opts.headless = true;
         opts.frames = parseDecimal(value);
@@ -182,7 +189,7 @@ export function parseOptions(args: string[]): ParseResult {
 
 /** The quirk profile selected by the options, with the explicit overrides applied. */
 export function quirksFor(opts: Options): Quirks {
-  const quirks = opts.profile === "schip" ? schipQuirks() : chip8Quirks();
+  const quirks = profileQuirks(opts.profile);
   quirks.wrapSprites = opts.wrapSprites;
   quirks.displayWait = opts.displayWait;
   return quirks;

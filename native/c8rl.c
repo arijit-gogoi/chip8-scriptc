@@ -28,7 +28,7 @@ void c8rl_init(int32_t width, int32_t height, const uint8_t *title, size_t title
     SetTraceLogLevel(LOG_WARNING);
     SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT);
     InitWindow(width, height, ctitle != NULL ? ctitle : "CHIP-8");
-    SetWindowMinSize(64, 32);
+    SetWindowMinSize(128, 64); /* room for SUPER-CHIP's 128x64 at scale 1 */
     SetTargetFPS(fps);
     free(ctitle);
 }
