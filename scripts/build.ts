@@ -10,6 +10,8 @@
  *   3. native/ffi.base.json + libraries + system libraries  -->  native/build/ffi.json
  *   4. scriptc build src/main.ts --tier static-only --ffi native/build/ffi.json -o dist/chip8[.exe]
  *      (scriptc is the native compiler installed in node_modules/scriptc/bin)
+ *   5. scriptc build src/tools.ts --tier static-only -o dist/chip8-tools[.exe]
+ *      (the assembler and disassembler; no FFI)
  *
  * Usage: bun scripts/build.ts [--clean] [--run <rom> [emulator args...]]
  */
@@ -27,7 +29,7 @@ const distDir = join(root, "dist");
 const raylibDir = join(root, "native", "vendor", `raylib-${RAYLIB_VERSION}`);
 const raylibSrc = join(raylibDir, "src");
 const platform = process.platform;
-const exeName = platform === "win32" ? "chip8.exe" : "chip8";
+const exeSuffix = platform === "win32" ? ".exe" : "";
 
 const argv = process.argv.slice(2);
 const runIndex = argv.indexOf("--run");
@@ -150,8 +152,14 @@ function scriptcPath(): string {
 
 function buildExecutable(manifestPath: string): string {
   mkdirSync(distDir, { recursive: true });
-  const output = join(distDir, exeName);
+  const output = join(distDir, `chip8${exeSuffix}`);
   run("scriptc", scriptcPath(), ["build", join(root, "src", "main.ts"), "--tier", "static-only", "--ffi", manifestPath, "-o", output]);
+  return output;
+}
+
+function buildTools(): string {
+  const output = join(distDir, `chip8-tools${exeSuffix}`);
+  run("scriptc", scriptcPath(), ["build", join(root, "src", "tools.ts"), "--tier", "static-only", "-o", output]);
   return output;
 }
 
@@ -161,7 +169,8 @@ requireZig();
 await buildRaylib();
 buildShim();
 const output = buildExecutable(writeManifest());
-console.log(`[done] ${output}`);
+const tools = buildTools();
+console.log(`[done] ${output}, ${tools}`);
 
 if (runArgs !== null) {
   if (runArgs.length === 0) fail("--run needs a ROM path");

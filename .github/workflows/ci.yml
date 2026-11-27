@@ -76,4 +76,6 @@ jobs:
           path: |
             dist/chip8
             dist/chip8.exe
+            dist/chip8-tools
+            dist/chip8-tools.exe
           if-no-files-found: error
