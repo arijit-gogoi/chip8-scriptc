@@ -1,4 +1,4 @@
-import { baseName } from "./cli";
+import { baseName } from "./paths";
 
 export const TOOLS_USAGE = `usage: chip8-tools asm <source.s> [-o <rom.ch8>]
        chip8-tools dis <rom.ch8> [-o <listing.s>]

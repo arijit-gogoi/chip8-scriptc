@@ -1,7 +1,8 @@
 /// <reference path="./rl.d.ts" />
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { Chip8, DISPLAY_HEIGHT, DISPLAY_WIDTH, KEY_COUNT, hex, renderAscii } from "./chip8";
-import { MAX_IPF, MIN_IPF, USAGE, baseName, parseOptions, quirksFor, type KeyPress, type Options } from "./cli";
+import { MAX_IPF, MIN_IPF, USAGE, parseOptions, quirksFor, type KeyPress, type Options } from "./cli";
+import { baseName } from "./paths";
 // The c8rl_* functions are ambient FFI declarations (see rl.d.ts, referenced
 // at the top of this file); scriptc binds them to native/c8rl.c through
 // native/build/ffi.json.

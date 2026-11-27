@@ -5,8 +5,8 @@
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { assemble } from "./asm";
-import { baseName } from "./cli";
 import { disassemble } from "./disasm";
+import { baseName } from "./paths";
 import { TOOLS_USAGE, parseToolArgs, withExtension } from "./tools-cli";
 
 function runAssembler(input: string, output: string): number {

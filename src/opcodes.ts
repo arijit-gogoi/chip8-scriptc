@@ -21,17 +21,23 @@ export interface Instruction {
 }
 
 /** Operand kinds that are fields of the word, with the bits each one occupies. */
-const FIELDS: Record<string, number> = { vx: 0x0f00, vy: 0x00f0, addr: 0x0fff, byte: 0x00ff, nibble: 0x000f };
+const FIELDS = new Map<string, number>([
+  ["vx", 0x0f00],
+  ["vy", 0x00f0],
+  ["addr", 0x0fff],
+  ["byte", 0x00ff],
+  ["nibble", 0x000f],
+]);
 
 /** How each operand kind is written in source; fields show their kind. */
-const SYNTAX: Record<string, string> = {
-  vx: "Vx", vy: "Vy", addr: "addr", byte: "byte", nibble: "nibble",
-  v0: "V0", i: "I", "[i]": "[I]", dt: "DT", st: "ST", k: "K", f: "F", hf: "HF", b: "B", r: "R",
-};
+const SYNTAX = new Map<string, string>([
+  ["vx", "Vx"], ["vy", "Vy"], ["addr", "addr"], ["byte", "byte"], ["nibble", "nibble"],
+  ["v0", "V0"], ["i", "I"], ["[i]", "[I]"], ["dt", "DT"], ["st", "ST"], ["k", "K"], ["f", "F"], ["hf", "HF"], ["b", "B"], ["r", "R"],
+]);
 
 function entry(mnemonic: string, operands: string[], opcode: number, superChip: boolean): Instruction {
   let fields = 0;
-  for (const kind of operands) fields |= FIELDS[kind] ?? 0;
+  for (const kind of operands) fields |= FIELDS.get(kind) ?? 0;
   return { mnemonic, operands, opcode, mask: 0xffff & ~fields, superChip };
 }
 
@@ -104,12 +110,12 @@ export function decode(word: number): Instruction | null {
 
 /** True when the operand kind is a field of the word rather than a fixed word. */
 export function isField(kind: string): boolean {
-  return FIELDS[kind] !== undefined;
+  return FIELDS.has(kind);
 }
 
 /** Source spelling of an operand kind: "Vx", "addr", "[I]", ... */
 export function operandSyntax(kind: string): string {
-  return SYNTAX[kind] ?? kind;
+  return SYNTAX.get(kind) ?? kind;
 }
 
 /** An instruction's form in source, such as "LD Vx, byte". */

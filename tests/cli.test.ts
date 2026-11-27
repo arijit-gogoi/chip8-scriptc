@@ -5,7 +5,6 @@ import {
   DEFAULT_SCALE,
   MAX_IPF,
   USAGE,
-  baseName,
   parseColor,
   parseDecimal,
   parseHex,
@@ -13,6 +12,7 @@ import {
   parsePress,
   quirksFor,
 } from "../src/cli";
+import { baseName } from "../src/paths";
 
 describe("number parsing", () => {
   test("parseDecimal", () => {
